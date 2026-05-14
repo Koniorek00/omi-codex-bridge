@@ -126,6 +126,9 @@ Omi Codex fix the failing tests
 Ask Codex to add a SQLite settings table
 Tell Codex to refactor the dashboard
 Codex start writing the Notion sync integration
+Hej Omi kodeks napraw aplikację
+Powiedz Codexowi żeby uruchomił testy
+Omi to jest do ciebie popraw bridge
 ```
 
 These control existing jobs through Omi chat tools:

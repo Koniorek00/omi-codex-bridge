@@ -35,10 +35,10 @@ Use the Tailscale Funnel HTTPS base URL plus the tokenized paths below.
 - Chat Tools Manifest URL: `/omi/<token>/.well-known/omi-tools.json`
 
 ## Voice Triggers
-- `Hey Omi Codex ...`
-- `Ask Codex to ...`
-- `Tell Codex to ...`
-- `Codex run ...`
+- English: `Hey Omi Codex ...`, `Ask Codex to ...`, `Tell Codex to ...`, `Codex run/fix/build ...`
+- Polish: `Hej Omi kodeks ...`, `Powiedz Codexowi żeby ...`, `Omi to jest do ciebie ...`
+- Speech-recognition aliases: `Codex`, `Kodex`, and `Kodeks` all target this local Codex bridge.
+- Omi chat tools expose `ask_codex` as the primary natural-language route to this PC.
 
 ## Job Flow
 1. Omi sends transcript or memory data to the bridge.
@@ -57,7 +57,7 @@ ADB sees phone serial `RZCXB128SKH`, but it is currently unauthorized. PC-side s
 - `codex --version` reports Codex CLI installed.
 - `tailscale status` reports this Windows machine online.
 - Cloudflare quick tunnel is running for port `8766` because Tailscale Funnel is blocked by missing tailnet HTTPS certificate support.
-- Public webhook smoke test queued and cancelled `job-15`.
+- Public webhook smoke tests queued and cancelled `job-15`, `job-16`, and `job-17`.
 - `scripts\prepare_all.ps1` prepares bridge, tunnel, setup files, and doctor pass.
 - `scripts\wait_for_android.ps1 -OpenOmi -StartScrcpy` is ready for the moment ADB is authorized.
 - `PHONE_READY_NEXT.md` is the short runbook for finishing phone-side setup after USB debugging authorization.

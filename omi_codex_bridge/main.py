@@ -130,6 +130,30 @@ def create_app(
     def memory_text(memory: dict[str, Any]) -> str:
         return " ".join(memory_candidate_texts(memory))
 
+    def transcript_segments_from_body(body: Any) -> list[Any]:
+        if isinstance(body, list):
+            return body
+        if not isinstance(body, dict):
+            raise HTTPException(status_code=400, detail="Expected transcript segment list or object with segments.")
+        for key in ("segments", "transcript_segments"):
+            value = body.get(key)
+            if isinstance(value, list):
+                return value
+        transcript = body.get("transcript")
+        if isinstance(transcript, list):
+            return transcript
+        if isinstance(transcript, str) and transcript.strip():
+            return [{"text": transcript, "is_user": True}]
+        text = body.get("text")
+        if isinstance(text, str) and text.strip():
+            return [body]
+        return []
+
+    def transcript_text_for_prompt(segments: list[TranscriptSegment]) -> str:
+        user_text = " ".join(segment.text.strip() for segment in segments if segment.is_user and segment.text.strip())
+        all_text = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
+        return user_text or all_text
+
     @app.get("/", response_class=HTMLResponse)
     async def root() -> str:
         return """
@@ -163,20 +187,51 @@ def create_app(
         return {
             "tools": [
                 {
-                    "name": "start_codex_task",
-                    "description": "Queue a Codex coding task on the user's local machine. Use this when the user asks Codex to build, fix, refactor, test, research code, or make files.",
+                    "name": "ask_codex",
+                    "description": (
+                        "Primary tool for talking to Codex on the user's Windows PC. Use this whenever the user says Codex, Kodex, Kodeks, "
+                        "agent, computer, assistant, you, do ciebie, or asks Omi to tell/ask Codex to build, fix, install, research, open files, "
+                        "set up apps, control the local workspace, or continue coding work. This queues the request for the local Codex bridge."
+                    ),
                     "endpoint": f"{base}/tools/start_codex_task",
                     "method": "POST",
                     "parameters": {
                         "properties": {
-                            "prompt": {"type": "string", "description": "The complete coding request for Codex."},
+                            "prompt": {
+                                "type": "string",
+                                "description": (
+                                    "The user's full natural-language request for Codex. Preserve intent, paths, app names, and Polish or English wording."
+                                ),
+                            },
+                            "workspace": {"type": "string", "description": "Optional local workspace path. Usually omit it."},
+                            "run_immediately": {
+                                "type": "boolean",
+                                "description": "Set true only if the user clearly says to run/start now. The bridge may still queue for safety.",
+                            },
+                        },
+                        "required": ["prompt"],
+                    },
+                    "auth_required": False,
+                    "status_message": "Sending this to Codex on the PC...",
+                },
+                {
+                    "name": "start_codex_task",
+                    "description": (
+                        "Queue a Codex coding task on the user's local machine. Use this when the user asks Codex, the assistant, or 'you' to build, "
+                        "fix, refactor, test, research code, manage files, set up integrations, or operate the configured PC workspace."
+                    ),
+                    "endpoint": f"{base}/tools/start_codex_task",
+                    "method": "POST",
+                    "parameters": {
+                        "properties": {
+                            "prompt": {"type": "string", "description": "The complete request for Codex, not a summary."},
                             "workspace": {"type": "string", "description": "Optional local workspace path. Defaults to the configured workspace."},
                             "run_immediately": {"type": "boolean", "description": "Whether to run immediately. The bridge may still queue if autorun is disabled."},
                         },
                         "required": ["prompt"],
                     },
                     "auth_required": False,
-                    "status_message": "Queuing Codex task...",
+                    "status_message": "Queuing this for Codex...",
                 },
                 {
                     "name": "run_codex_job",
@@ -206,7 +261,7 @@ def create_app(
                 },
                 {
                     "name": "list_codex_jobs",
-                    "description": "List recent Codex bridge jobs and their statuses. Use this when the user asks what is queued, running, failed, or completed.",
+                    "description": "List recent Codex bridge jobs and their statuses. Use this when the user asks what Codex is doing, what is queued, running, failed, or completed.",
                     "endpoint": f"{base}/tools/list_codex_jobs",
                     "method": "POST",
                     "parameters": {
@@ -275,7 +330,7 @@ def create_app(
                 },
                 {
                     "name": "check_bridge_status",
-                    "description": "Check whether the local bridge, Codex CLI, queue, and safety settings are healthy.",
+                    "description": "Check whether the local PC bridge, Codex CLI, cloud tunnel, queue, and safety settings are healthy. Use this if the user asks whether you are connected or working.",
                     "endpoint": f"{base}/tools/check_bridge_status",
                     "method": "POST",
                     "parameters": {"properties": {}, "required": []},
@@ -297,7 +352,7 @@ def create_app(
             background.add_task(maybe_run, job["id"])
         status = "queued" if inserted else "already queued"
         run_hint = " It will run after approval from the bridge dashboard." if not config.autorun else ""
-        return {"result": f"Codex job {job['id']} {status}.{run_hint}"}
+        return {"result": f"Sent to Codex on the PC as {job['id']}: {status}.{run_hint}"}
 
     @app.post("/omi/{token}/tools/run_codex_job")
     async def run_codex_job_tool(token: str, payload: RunCodexJobRequest, background: BackgroundTasks) -> dict[str, str]:
@@ -395,17 +450,11 @@ def create_app(
     ) -> dict[str, Any]:
         check_token(token)
         body = await request.json()
-        if isinstance(body, list):
-            raw_segments = body
-            active_session_id = session_id or f"{uid}-default"
-        elif isinstance(body, dict):
-            raw_segments = body.get("segments", [])
-            active_session_id = session_id or body.get("session_id") or f"{uid}-default"
-        else:
-            raise HTTPException(status_code=400, detail="Expected transcript segment list or object with segments.")
+        raw_segments = transcript_segments_from_body(body)
+        active_session_id = session_id or (body.get("session_id") if isinstance(body, dict) else None) or f"{uid}-default"
 
         segments = [TranscriptSegment.model_validate(segment) for segment in raw_segments]
-        transcript = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
+        transcript = transcript_text_for_prompt(segments)
         prompt = extract_codex_prompt(transcript)
         if not prompt:
             return {"session_id": active_session_id, "message": "", "accepted_segments": len(segments)}
@@ -427,7 +476,7 @@ def create_app(
         return {
             "session_id": active_session_id,
             "accepted_segments": len(segments),
-            "message": f"Codex job {job['id']} {action}. Open the bridge dashboard to run it.",
+            "message": f"Sent to Codex on this PC as {job['id']}: {action}. Open the bridge dashboard or say run next Codex job.",
             "job_id": job["id"],
             "status": job["status"],
         }
@@ -466,7 +515,7 @@ def create_app(
         action = "queued" if inserted else "already queued"
         return {
             "memory_id": memory_id,
-            "message": f"Codex job {job['id']} {action} from memory. Open the bridge dashboard to run it.",
+            "message": f"Sent memory request to Codex on this PC as {job['id']}: {action}.",
             "job_id": job["id"],
             "status": job["status"],
         }

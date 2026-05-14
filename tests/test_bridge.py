@@ -39,6 +39,10 @@ def test_trigger_parser_extracts_voice_prompt() -> None:
     assert extract_codex_prompt("Hey Omi Codex build a todo app") == "build a todo app"
     assert extract_codex_prompt("Please tell Codex to fix the failing tests") == "fix the failing tests"
     assert extract_codex_prompt("Ask Codex to write exactly: done.") == "write exactly: done."
+    assert extract_codex_prompt("Codex fix the failing tests") == "fix the failing tests"
+    assert extract_codex_prompt("Hej Omi kodeks napraw aplikację") == "napraw aplikację"
+    assert extract_codex_prompt("Omi to jest do ciebie popraw bridge") == "popraw bridge"
+    assert extract_codex_prompt("Powiedz Codexowi żeby uruchomił testy") == "uruchomił testy"
     assert extract_codex_prompt("normal meeting transcript") is None
 
 
@@ -76,11 +80,37 @@ def test_realtime_webhook_queues_job_and_dedupes(tmp_path: Path) -> None:
     second = client.post("/omi/test-token/webhooks/realtime", params={"uid": "u1", "session_id": "s1"}, json=payload).json()
 
     assert first["job_id"] == "job-1"
-    assert first["message"].startswith("Codex job job-1 queued")
+    assert first["message"].startswith("Sent to Codex on this PC as job-1")
     assert second["job_id"] == "job-1"
     jobs = client.get("/omi/test-token/api/jobs").json()["jobs"]
     assert len(jobs) == 1
     assert jobs[0]["prompt"] == "build a dashboard for this project"
+
+
+def test_realtime_webhook_accepts_loose_transcript_payloads(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/webhooks/realtime",
+        params={"uid": "u1"},
+        json={"transcript": "Omi to jest do ciebie popraw aplikację"},
+    ).json()
+    assert response["job_id"] == "job-1"
+    job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+    assert job["prompt"] == "popraw aplikację"
+
+
+def test_realtime_webhook_prefers_user_segments(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    payload = {
+        "segments": [
+            {"text": "someone said Codex build a random thing", "is_user": False},
+            {"text": "Powiedz Codexowi żeby naprawił bridge", "is_user": True},
+        ]
+    }
+    response = client.post("/omi/test-token/webhooks/realtime", params={"uid": "u1"}, json=payload).json()
+    assert response["job_id"] == "job-1"
+    job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+    assert job["prompt"] == "naprawił bridge"
 
 
 def test_realtime_webhook_ignores_non_trigger_transcript(tmp_path: Path) -> None:
@@ -112,6 +142,7 @@ def test_manifest_exposes_full_job_control_tools(tmp_path: Path) -> None:
     manifest = client.get("/omi/test-token/.well-known/omi-tools.json").json()
     names = {tool["name"] for tool in manifest["tools"]}
     assert {
+        "ask_codex",
         "start_codex_task",
         "run_codex_job",
         "run_next_codex_job",
@@ -137,7 +168,7 @@ def test_memory_webhook_queues_codex_command(tmp_path: Path) -> None:
     }
     response = client.post("/omi/test-token/webhooks/memory", params={"uid": "u1"}, json=payload).json()
     assert response["job_id"] == "job-1"
-    assert response["message"].startswith("Codex job job-1 queued from memory")
+    assert response["message"].startswith("Sent memory request to Codex on this PC as job-1")
     job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
     assert job["source"] == "omi-memory"
     assert job["prompt"] == "add a backup script"
