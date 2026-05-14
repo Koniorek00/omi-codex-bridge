@@ -1,0 +1,66 @@
+---
+type: omi-codex-bridge-map
+project: omi-codex-bridge
+status: active
+created: 2026-05-14
+tags:
+  - omi
+  - codex
+  - agents
+---
+
+# Omi Codex Bridge Map
+
+## Goal
+Voice or chat requests from Omi should become queued Codex jobs on this PC. Jobs are reviewed and run from the local dashboard or through Omi chat tools.
+
+## Active Bridge
+- Project: `F:\ag projects\apps\Omi\omi-codex-bridge`
+- Local dashboard: `http://127.0.0.1:8766/omi/<token>`
+- Token file: `F:\ag projects\apps\Omi\omi-codex-bridge\runtime\current-token.txt`
+- Health check: `http://127.0.0.1:8766/health`
+- Current quick-tunnel base URL file: `F:\ag projects\apps\Omi\omi-codex-bridge\runtime\public-base-url.txt`
+- Private tokenized Omi setup URLs: `F:\ag projects\apps\Omi\omi-codex-bridge\runtime\omi-setup-urls.private.txt`
+- Private setup HTML page: `F:\ag projects\apps\Omi\omi-codex-bridge\runtime\omi-setup.private.html`
+- Default workspace: `F:\ag projects\apps\Omi`
+- Allowed workspace roots: `F:\ag projects`, `C:\Users\wikto\.codex\skills`, `C:\Users\wikto\.agents\skills`, `F:\programy\Obsidian\Codex Vault\Codex`
+
+## Omi URLs
+Use the Tailscale Funnel HTTPS base URL plus the tokenized paths below.
+
+- App Home URL: `/omi/<token>`
+- Setup completed URL: `/omi/<token>/setup-completed`
+- Memory creation webhook: `/omi/<token>/webhooks/memory`
+- Realtime transcript webhook: `/omi/<token>/webhooks/realtime`
+- Chat Tools Manifest URL: `/omi/<token>/.well-known/omi-tools.json`
+
+## Voice Triggers
+- `Hey Omi Codex ...`
+- `Ask Codex to ...`
+- `Tell Codex to ...`
+- `Codex run ...`
+
+## Job Flow
+1. Omi sends transcript or memory data to the bridge.
+2. The bridge extracts Codex-specific instructions and deduplicates repeated transcript segments.
+3. A job is queued in SQLite under `runtime\bridge.db`.
+4. The user or Omi chat tool runs a queued job.
+5. The bridge starts `codex exec` in the requested allowlisted workspace.
+6. Output is stored under `runtime\jobs\<job-id>`.
+
+## Phone State
+ADB sees phone serial `RZCXB128SKH`, but it is currently unauthorized. PC-side setup is complete enough to run the bridge; phone UI automation needs the Android USB debugging prompt accepted on the phone.
+
+## Verification
+- `python -m pytest -q` passes in `omi-codex-bridge`.
+- `python -m pytest -q` passes in `omi-hermes-bridge`.
+- `codex --version` reports Codex CLI installed.
+- `tailscale status` reports this Windows machine online.
+- Cloudflare quick tunnel is running for port `8766` because Tailscale Funnel is blocked by missing tailnet HTTPS certificate support.
+- Public webhook smoke test queued and cancelled `job-15`.
+- `scripts\prepare_all.ps1` prepares bridge, tunnel, setup files, and doctor pass.
+- `scripts\wait_for_android.ps1 -OpenOmi -StartScrcpy` is ready for the moment ADB is authorized.
+- `PHONE_READY_NEXT.md` is the short runbook for finishing phone-side setup after USB debugging authorization.
+
+## Notes
+Do not store bridge tokens, Omi API keys, OAuth links, or app API keys in notes. The token file path may be documented; the token value should stay out of reports.

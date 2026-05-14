@@ -1,0 +1,17 @@
+[project]
+name = "omi-codex-bridge"
+version = "0.1.0"
+description = "Tailscale Funnel friendly bridge from Omi voice/chat commands to Codex CLI jobs."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "httpx>=0.27",
+  "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
