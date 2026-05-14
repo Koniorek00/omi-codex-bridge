@@ -11,10 +11,10 @@ TRIGGER_PATTERNS = [
     rf"\bomi\s+{CODEX_NAME}\b",
     rf"\b(?:ask|tell|get|have)\s+{CODEX_NAME}\s+(?:to|please)\b",
     rf"\b{CODEX_NAME}\s+(?:please|pls)\b",
-    rf"\b{CODEX_NAME}\b(?=\s+(?:start|build|fix|implement|run|test|create|add|write|check|continue|improve|refactor|review|debug|install|set\s+up|prepare|open|connect)\b)",
+    rf"\b{CODEX_NAME}\b(?=\s+(?:start|build|fix|implement|run|test|create|add|write|check|continue|improve|refactor|review|debug|install|set\s+up|prepare|open|connect|otw[oó]rz|otworz|otworzy[lł]|otwórz)\b)",
     rf"\b(?:hej\s+)?omi\s+(?:to\s+)?(?:jest\s+)?(?:do\s+)?(?:ciebie|{CODEX_NAME})\b",
     rf"\b(?:to\s+)?(?:jest\s+)?do\s+(?:ciebie|{CODEX_NAME}a|{CODEX_NAME}u)\b",
-    rf"\b(?:powiedz|zapytaj|popros|poproś|daj\s+znać|daj\s+znac)\s+(?:{CODEX_NAME}owi|{CODEX_NAME}a|{CODEX_NAME}u|ciebie)\s+(?:żeby|zeby|aby|by|to)?\b",
+    rf"\b(?:powiedz|zapytaj|popros|poproś|daj\s+znać|daj\s+znac)\s+(?:{CODEX_NAME}|{CODEX_NAME}owi|{CODEX_NAME}a|{CODEX_NAME}u|ciebie)\s+(?:żeby|zeby|aby|by|to)?\b",
     rf"\b{CODEX_NAME}\b(?=\s+(?:proszę|prosze|zrób|zrob|napraw|dodaj|stwórz|stworz|utwórz|utworz|uruchom|sprawdź|sprawdz|przetestuj|kontynuuj|popraw|ogarnij|ustaw|zainstaluj|podłącz|podlacz|połącz|polacz|przygotuj)\b)",
     r"\b(?:hej\s+)?omi\s+(?:to\s+)?(?:jest\s+)?do\s+ciebie\b",
 ]

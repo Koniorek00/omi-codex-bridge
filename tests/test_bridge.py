@@ -43,6 +43,7 @@ def test_trigger_parser_extracts_voice_prompt() -> None:
     assert extract_codex_prompt("Hej Omi kodeks napraw aplikację") == "napraw aplikację"
     assert extract_codex_prompt("Omi to jest do ciebie popraw bridge") == "popraw bridge"
     assert extract_codex_prompt("Powiedz Codexowi żeby uruchomił testy") == "uruchomił testy"
+    assert extract_codex_prompt("Hej Omi powiedz Codex zeby otworzyl plik z pulpitu") == "otworzyl plik z pulpitu"
     assert extract_codex_prompt("normal meeting transcript") is None
 
 
@@ -141,9 +142,13 @@ def test_manifest_exposes_full_job_control_tools(tmp_path: Path) -> None:
     client = make_client(tmp_path)
     manifest = client.get("/omi/test-token/.well-known/omi-tools.json").json()
     names = {tool["name"] for tool in manifest["tools"]}
+    assert manifest["chat_messages"] == {"enabled": True, "target": "app", "notify": False}
     assert {
         "ask_codex",
         "start_codex_task",
+        "open_desktop_file",
+        "show_on_android",
+        "quick_codex_task",
         "run_codex_job",
         "run_next_codex_job",
         "list_codex_jobs",
@@ -153,6 +158,69 @@ def test_manifest_exposes_full_job_control_tools(tmp_path: Path) -> None:
         "retry_codex_job",
         "check_bridge_status",
     }.issubset(names)
+
+
+def test_open_desktop_file_tool_creates_safe_demo(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OMI_CODEX_DISABLE_OPEN", "1")
+    monkeypatch.setenv("OMI_CODEX_DESKTOP_DIR", str(tmp_path / "Desktop"))
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/tools/open_desktop_file",
+        json={"uid": "u1", "app_id": "omi_codex_bridge", "tool_name": "open_desktop_file"},
+    ).json()
+    assert response["result"].startswith("Opened desktop file on this PC")
+    assert Path(response["path"]).name == "omi-codex-open-test.txt"
+
+
+def test_realtime_desktop_open_runs_immediately(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OMI_CODEX_DISABLE_OPEN", "1")
+    monkeypatch.setenv("OMI_CODEX_DESKTOP_DIR", str(tmp_path / "Desktop"))
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/webhooks/realtime",
+        params={"uid": "u1"},
+        json={"transcript": "Hej Omi powiedz Codex zeby otworzyl na moim komputerze teraz jakis plik z pulpitu obojetne"},
+    ).json()
+    assert response["action"] == "open_desktop_file"
+    assert response["message"].startswith("Opened desktop file on this PC")
+    assert client.get("/omi/test-token/api/jobs").json()["jobs"] == []
+
+
+def test_show_on_android_tool_dry_run(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/tools/show_on_android",
+        json={
+            "uid": "u1",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "show_on_android",
+            "title": "Codex",
+            "message": "Hello phone",
+        },
+    ).json()
+    assert response["result"] == "Shown on Android: Codex"
+    assert response["message"] == "Hello phone"
+    assert response["delivery"] == "dry_run"
+
+
+def test_quick_codex_task_queues_template(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/tools/quick_codex_task",
+        json={
+            "uid": "u1",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "quick_codex_task",
+            "task_type": "fix",
+            "details": "repair the bridge tests",
+        },
+    ).json()
+    assert "job-1" in response["result"]
+    job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+    assert job["source"] == "omi-quick-fix"
+    assert "Find and fix" in job["prompt"]
+    assert "repair the bridge tests" in job["prompt"]
 
 
 def test_memory_webhook_queues_codex_command(tmp_path: Path) -> None:

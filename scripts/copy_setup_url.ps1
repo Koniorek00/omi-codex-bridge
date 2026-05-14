@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("home", "setup", "memory", "realtime", "manifest")]
+  [ValidateSet("home", "setup", "memory", "realtime", "day-summary", "manifest")]
   [string]$Name = "realtime"
 )
 
@@ -16,6 +16,7 @@ $labels = @{
   setup = "Setup completed URL"
   memory = "Memory creation webhook"
   realtime = "Realtime transcript webhook"
+  "day-summary" = "Day summary webhook"
   manifest = "Chat Tools Manifest URL"
 }
 

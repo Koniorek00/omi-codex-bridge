@@ -42,6 +42,24 @@ class StartCodexTaskRequest(ToolBaseRequest):
     run_immediately: bool = False
 
 
+class OpenDesktopFileRequest(ToolBaseRequest):
+    query: str | None = None
+    create_demo_if_needed: bool = True
+
+
+class ShowOnAndroidRequest(ToolBaseRequest):
+    title: str = "Codex"
+    message: str
+    expand_notifications: bool = True
+
+
+class QuickCodexTaskRequest(ToolBaseRequest):
+    task_type: str
+    details: str
+    workspace: str | None = None
+    run_immediately: bool = False
+
+
 class RunCodexJobRequest(ToolBaseRequest):
     job_id: str
 

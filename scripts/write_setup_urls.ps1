@@ -39,6 +39,7 @@ $urls = [ordered]@{
   "Setup completed URL" = "$BaseUrl/omi/$token/setup-completed"
   "Memory creation webhook" = "$BaseUrl/omi/$token/webhooks/memory"
   "Realtime transcript webhook" = "$BaseUrl/omi/$token/webhooks/realtime"
+  "Day summary webhook" = "$BaseUrl/omi/$token/webhooks/day-summary"
   "Chat Tools Manifest URL" = "$BaseUrl/omi/$token/.well-known/omi-tools.json"
 }
 

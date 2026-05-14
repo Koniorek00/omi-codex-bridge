@@ -19,6 +19,16 @@ class BridgeConfig:
     autorun: bool
     runner_mode: str
     codex_timeout_seconds: int
+    obsidian_enabled: bool = False
+    obsidian_vault_path: Path | None = None
+    obsidian_root: str = "Codex/Omi Codex Bridge"
+    omi_app_id: str | None = None
+    omi_app_secret: str | None = None
+    omi_api_base_url: str = "https://api.omi.me"
+    omi_notification_mode: str = "auto"
+    omi_chat_messages_enabled: bool = True
+    omi_chat_messages_target: str = "app"
+    omi_chat_messages_notify: bool = False
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
@@ -28,6 +38,14 @@ class BridgeConfig:
         allowed = _split_paths(allowed_raw)
         if not allowed:
             allowed = [default_workspace]
+        obsidian_vault_raw = os.getenv("OMI_OBSIDIAN_VAULT_PATH", r"F:\programy\Obsidian\Codex Vault\Codex").strip()
+        obsidian_vault = Path(obsidian_vault_raw).expanduser().resolve() if obsidian_vault_raw else None
+        notification_mode = os.getenv("OMI_NOTIFICATION_MODE", "auto").strip().lower()
+        if notification_mode not in {"auto", "adb", "omi"}:
+            notification_mode = "auto"
+        chat_target = os.getenv("OMI_CHAT_MESSAGES_TARGET", "app").strip().lower()
+        if chat_target not in {"app", "main"}:
+            chat_target = "app"
         return cls(
             token=os.getenv("OMI_CODEX_BRIDGE_TOKEN", "dev-token-change-me"),
             runtime_dir=runtime_dir,
@@ -37,6 +55,16 @@ class BridgeConfig:
             autorun=os.getenv("OMI_CODEX_AUTORUN", "0").strip().lower() in {"1", "true", "yes", "on"},
             runner_mode=os.getenv("OMI_CODEX_RUNNER", "codex").strip().lower(),
             codex_timeout_seconds=int(os.getenv("OMI_CODEX_TIMEOUT_SECONDS", "1800")),
+            obsidian_enabled=os.getenv("OMI_OBSIDIAN_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"},
+            obsidian_vault_path=obsidian_vault,
+            obsidian_root=os.getenv("OMI_OBSIDIAN_ROOT", "Codex/Omi Codex Bridge").strip() or "Codex/Omi Codex Bridge",
+            omi_app_id=os.getenv("OMI_APP_ID", "").strip() or None,
+            omi_app_secret=os.getenv("OMI_APP_SECRET", "").strip() or None,
+            omi_api_base_url=os.getenv("OMI_API_BASE_URL", "https://api.omi.me").strip().rstrip("/") or "https://api.omi.me",
+            omi_notification_mode=notification_mode,
+            omi_chat_messages_enabled=os.getenv("OMI_CHAT_MESSAGES_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"},
+            omi_chat_messages_target=chat_target,
+            omi_chat_messages_notify=os.getenv("OMI_CHAT_MESSAGES_NOTIFY", "0").strip().lower() in {"1", "true", "yes", "on"},
         )
 
     @property
@@ -50,4 +78,3 @@ class BridgeConfig:
                 return candidate
         allowed_text = "; ".join(str(path) for path in self.allowed_workspaces)
         raise ValueError(f"Workspace {candidate} is outside allowed workspaces: {allowed_text}")
-

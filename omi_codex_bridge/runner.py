@@ -7,6 +7,7 @@ from typing import Protocol
 
 from .config import BridgeConfig
 from .models import utc_now_iso
+from .obsidian import ObsidianExporter
 from .storage import BridgeStorage
 
 
@@ -19,6 +20,7 @@ class CodexRunner:
     def __init__(self, storage: BridgeStorage, config: BridgeConfig) -> None:
         self.storage = storage
         self.config = config
+        self.obsidian = ObsidianExporter(config)
 
     def build_prompt(self, job: dict) -> str:
         memory_index = self.config.runtime_dir / "OMI_AGENT_MAP.md"
@@ -67,7 +69,7 @@ class CodexRunner:
         prompt = self.build_prompt(job)
         command = self.build_command(job, last_message_path)
 
-        self.storage.update_job(
+        running_job = self.storage.update_job(
             job_id,
             status="running",
             started_at=utc_now_iso(),
@@ -77,6 +79,7 @@ class CodexRunner:
             error=None,
         )
         self.storage.add_event(job_id, "job.running", "Codex CLI started.")
+        self._export_job(running_job)
 
         try:
             process = subprocess.run(
@@ -97,17 +100,26 @@ class CodexRunner:
                 error=None if process.returncode == 0 else process.stderr[-2000:],
             )
             self.storage.add_event(job_id, f"job.{status}", f"Codex finished with exit code {process.returncode}.")
+            self._export_job(updated)
             return updated
         except Exception as exc:
             updated = self.storage.update_job(job_id, status="failed", finished_at=utc_now_iso(), error=str(exc))
             self.storage.add_event(job_id, "job.failed", str(exc))
+            self._export_job(updated)
             return updated
+
+    def _export_job(self, job: dict) -> None:
+        try:
+            self.obsidian.export_job(job)
+        except Exception as exc:
+            self.storage.add_event(job["id"], "obsidian.export_failed", str(exc))
 
 
 class MockRunner:
     def __init__(self, storage: BridgeStorage, config: BridgeConfig) -> None:
         self.storage = storage
         self.config = config
+        self.obsidian = ObsidianExporter(config)
 
     def run(self, job_id: str) -> dict:
         job = self.storage.get_job(job_id)
@@ -128,4 +140,8 @@ class MockRunner:
             command_json=["mock-codex"],
         )
         self.storage.add_event(job_id, "job.succeeded", "Mock runner completed.")
+        try:
+            self.obsidian.export_job(updated)
+        except Exception as exc:
+            self.storage.add_event(job_id, "obsidian.export_failed", str(exc))
         return updated

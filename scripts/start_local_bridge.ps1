@@ -3,6 +3,9 @@ param(
   [switch]$Background,
   [string]$Workspace = "F:\ag projects\apps\Omi",
   [string]$AllowedWorkspaces = "F:\ag projects;C:\Users\wikto\.codex\skills;C:\Users\wikto\.agents\skills;F:\programy\Obsidian\Codex Vault\Codex",
+  [string]$ObsidianVault = "F:\programy\Obsidian\Codex Vault\Codex",
+  [string]$ObsidianRoot = "Codex/Omi Codex Bridge",
+  [switch]$DisableObsidian,
   [string]$TokenFile = "runtime\current-token.txt"
 )
 
@@ -33,6 +36,9 @@ $env:OMI_CODEX_ALLOWED_WORKSPACES = $AllowedWorkspaces
 $env:OMI_CODEX_AUTORUN = "0"
 $env:OMI_CODEX_RUNNER = "codex"
 $env:OMI_CODEX_RUNTIME_DIR = $runtimeDir
+$env:OMI_OBSIDIAN_ENABLED = if ($DisableObsidian) { "0" } else { "1" }
+$env:OMI_OBSIDIAN_VAULT_PATH = $ObsidianVault
+$env:OMI_OBSIDIAN_ROOT = $ObsidianRoot
 
 if ($Background) {
   $logDir = Join-Path $runtimeDir "logs"
@@ -48,8 +54,13 @@ if ($Background) {
     "-Port", "$Port",
     "-Workspace", "`"$Workspace`"",
     "-AllowedWorkspaces", "`"$AllowedWorkspaces`"",
+    "-ObsidianVault", "`"$ObsidianVault`"",
+    "-ObsidianRoot", "`"$ObsidianRoot`"",
     "-TokenFile", "`"$TokenFile`""
   )
+  if ($DisableObsidian) {
+    $argList += "-DisableObsidian"
+  }
   Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr | Out-Null
   Write-Host "Omi Codex Bridge starting in background on http://127.0.0.1:$Port"
   Write-Host "Token saved in $tokenPath"

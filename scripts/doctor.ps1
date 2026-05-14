@@ -22,6 +22,9 @@ $health = $null
 try {
   $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 5
   Show-Check "bridge health" ($health.status -eq "healthy") ($health | ConvertTo-Json -Compress)
+  if ($health.obsidian) {
+    Show-Check "obsidian export" ($health.obsidian.active -and $health.obsidian.root_exists) ($health.obsidian | ConvertTo-Json -Compress)
+  }
 } catch {
   Show-Check "bridge health" $false "not answering on http://127.0.0.1:$Port/health"
 }
@@ -72,7 +75,10 @@ if (Test-Path $quickTunnelFile) {
     try {
       $manifest = Invoke-RestMethod -Uri "$quickTunnelUrl/omi/$token/.well-known/omi-tools.json" -TimeoutSec 10
       $toolNames = @($manifest.tools | ForEach-Object { $_.name })
-      Show-Check "omi chat manifest" ($toolNames -contains "ask_codex") ("tools: " + ($toolNames -join ", "))
+      $expectedTools = @("ask_codex", "open_desktop_file", "show_on_android", "quick_codex_task", "check_bridge_status")
+      $missingTools = @($expectedTools | Where-Object { $toolNames -notcontains $_ })
+      $chatMessagesOk = $manifest.chat_messages -and ($manifest.chat_messages.enabled -eq $true)
+      Show-Check "omi chat manifest" (($missingTools.Count -eq 0) -and $chatMessagesOk) ("tools: " + ($toolNames -join ", ") + "; chat_messages: " + ($manifest.chat_messages | ConvertTo-Json -Compress))
     } catch {
       Show-Check "omi chat manifest" $false "manifest failed through public URL"
     }
