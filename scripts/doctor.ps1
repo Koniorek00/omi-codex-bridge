@@ -58,11 +58,30 @@ try {
 $quickTunnelFile = Join-Path $root "runtime\public-base-url.txt"
 if (Test-Path $quickTunnelFile) {
   $quickTunnelUrl = (Get-Content -Raw -LiteralPath $quickTunnelFile).Trim()
+  $token = $null
+  if (Test-Path $tokenPath) {
+    $token = (Get-Content -Raw -LiteralPath $tokenPath).Trim()
+  }
   try {
     $quickHealth = Invoke-RestMethod -Uri "$quickTunnelUrl/health" -TimeoutSec 10
     Show-Check "cloudflare quick tunnel" ($quickHealth.status -eq "healthy") "public HTTPS health is reachable"
   } catch {
     Show-Check "cloudflare quick tunnel" $false "URL exists but health check failed: $quickTunnelUrl"
+  }
+  if ($token) {
+    try {
+      $manifest = Invoke-RestMethod -Uri "$quickTunnelUrl/omi/$token/.well-known/omi-tools.json" -TimeoutSec 10
+      $toolNames = @($manifest.tools | ForEach-Object { $_.name })
+      Show-Check "omi chat manifest" ($toolNames -contains "ask_codex") ("tools: " + ($toolNames -join ", "))
+    } catch {
+      Show-Check "omi chat manifest" $false "manifest failed through public URL"
+    }
+    try {
+      $setup = Invoke-RestMethod -Uri "$quickTunnelUrl/omi/$token/setup-completed" -TimeoutSec 10
+      Show-Check "omi setup endpoint" ($setup.is_setup_completed -eq $true) ($setup | ConvertTo-Json -Compress)
+    } catch {
+      Show-Check "omi setup endpoint" $false "setup-completed failed through public URL"
+    }
   }
 } else {
   Show-Check "cloudflare quick tunnel" $false "not started; run scripts\start_cloudflare_quick_tunnel.ps1"
