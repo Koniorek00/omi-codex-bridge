@@ -174,6 +174,14 @@ Use this chat tool to verify the quiet path:
 Check phone status
 ```
 
+To review Omi UIDs seen by tools and webhooks, open the protected local API:
+
+```text
+http://127.0.0.1:8766/omi/YOUR_TOKEN/api/known-uids
+```
+
+Use the real phone UID from this list only when intentionally adding `OMI_CODEX_TRUSTED_UIDS` for trusted autorun.
+
 The manifest also exposes Omi `chat_messages` so Omi knows the app can send app-chat messages.
 
 The Android helper can open the Omi app after ADB is authorized:

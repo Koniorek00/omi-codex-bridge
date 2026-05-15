@@ -320,6 +320,31 @@ def test_check_phone_status_tool_reports_quiet_ready(tmp_path: Path, monkeypatch
     assert "Quiet mode: yes" in response["result"]
 
 
+def test_known_uids_capture_non_job_tool_calls(tmp_path: Path, monkeypatch) -> None:
+    def fake_android_status(config, include_power=True, include_guards=True):
+        return {
+            "adb_found": True,
+            "available": True,
+            "target": "usb-1",
+            "transport": "usb",
+            "quiet_ready": True,
+            "power": {"wakefulness": "Dozing"},
+            "wake_guards": {"wake_guards_disabled": True},
+        }
+
+    monkeypatch.setattr("omi_codex_bridge.main.android_status", fake_android_status)
+    client = make_client(tmp_path)
+    client.post(
+        "/omi/test-token/tools/check_phone_status",
+        json={"uid": "real-omi-user", "app_id": "omi_codex_bridge", "tool_name": "check_phone_status"},
+    )
+
+    known = client.get("/omi/test-token/api/known-uids").json()["known_uids"]
+
+    assert known[0]["uid"] == "real-omi-user"
+    assert "check_phone_status" in known[0]["sources"]
+
+
 def test_phone_status_updates_are_delivered_without_expanding_notifications(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
     client = make_client(tmp_path, phone_status_updates=True)

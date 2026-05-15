@@ -6,7 +6,7 @@ Last updated: 2026-05-15
 
 The project works locally. Omi can reach the bridge, the bridge can queue Codex jobs, phone notifications work quietly, Obsidian REST works, and tests pass.
 
-The main unfinished items are not core code bugs. They are setup/product gaps: GitHub sync, final Omi phone-side URL update, real trusted Omi UID capture, and Tailscale Funnel admin settings.
+The main unfinished items are not core code bugs. They are setup/product gaps: final Omi phone-side URL confirmation, first real Omi UID sighting, trusted autorun decision, and Tailscale Funnel admin settings.
 
 ## What We Have
 
@@ -16,6 +16,8 @@ The main unfinished items are not core code bugs. They are setup/product gaps: G
 - Codex job queue with manual run controls.
 - Autorun disabled by default.
 - Trusted UID gate for future autorun.
+- Automatic UID sighting log for Omi tools and webhooks.
+- Protected `/api/known-uids` endpoint to inspect captured Omi UIDs.
 - Android phone notifications through ADB.
 - Quiet phone behavior by default.
 - `check_phone_status` tool.
@@ -31,14 +33,15 @@ The main unfinished items are not core code bugs. They are setup/product gaps: G
 
 - Tailscale Funnel is not fully working because HTTPS/Funnel cert support is blocked in Tailscale admin settings.
 - Full public autorun is not enabled.
-- Real Omi phone `uid` is not captured into `OMI_CODEX_TRUSTED_UIDS`.
+- Real Omi phone `uid` is not in `OMI_CODEX_TRUSTED_UIDS` yet. The bridge will now capture it automatically after the first real Omi tool or webhook request.
 - Omi phone-side setup may need a URL refresh if the Cloudflare quick tunnel changes.
-- GitHub `origin/master` is synced with local `master`.
 - Stronger public remote-control policy is still a future security/product decision.
 
 ## Current Verification
 
-- `python -m pytest -q` passes.
+- `python -m pytest -q` passes: 34 tests.
+- Live local bridge answers `/health/quick`.
+- Live local bridge answers protected `/api/known-uids`.
 - Local connection check passes:
   - core skills OK
   - workflow boundary OK
@@ -51,6 +54,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: G
 
 - [x] Push local commits to GitHub.
 - [x] Confirm GitHub branch is no longer behind local work.
+- [x] Capture future Omi UIDs automatically from tools/webhooks.
 - [ ] If Cloudflare URL changed, update the Omi app setup URL on the phone.
 - [ ] Capture real Omi `uid` from an incoming request.
 - [ ] Add trusted UID only if autorun is intentionally enabled later.

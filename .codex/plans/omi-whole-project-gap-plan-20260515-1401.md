@@ -1,6 +1,6 @@
 # Plan: Omi Whole Project Gap Plan
 **Created:** 2026-05-15T14:01:30+02:00
-**Status:** Complete
+**Status:** Complete locally; external setup blockers remain
 **Risk Level:** Medium
 **Reversal Cost:** Low to medium. Most work is docs, checks, git sync, and additive hardening; remote push is reversible by later commits.
 **Skills Orchestrated:** elite-planner
@@ -80,7 +80,7 @@ Create a clear, normal project report for the whole Omi/Codex bridge state: what
 
 **Gaps in capability:**
 - Tailscale admin setting cannot be fixed locally unless the user has admin access and wants that path.
-- Real Omi phone uid cannot be guessed; it must come from an actual Omi request/log.
+- Real Omi phone uid cannot be guessed; it must come from an actual Omi request. The bridge now records future sightings automatically.
 - Full public autorun security needs product decisions, not just code.
 
 ## 4. Assumption Ledger
@@ -162,14 +162,17 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - **Changes:** likely runtime/Omi app config, not code.
 - **Implementation steps:**
   - [ ] Open/update Omi app with current setup URL if Cloudflare URL changed.
-  - [ ] Capture real Omi `uid` from a request/log.
+  - [x] Add automatic UID sighting capture for tools and webhooks.
+  - [x] Add protected `/api/known-uids` endpoint for setup/trust review.
+  - [ ] Capture real Omi `uid` from a real phone request.
   - [ ] Add trusted UID only if autorun is intentionally enabled later.
 - **Verification gate:**
-  - [ ] `scripts/doctor.ps1`
+  - [x] `python -m pytest -q`
+  - [x] live local `/api/known-uids` endpoint check
   - [ ] real Omi phrase smoke test
-- **Status:** Deferred
-- **Verified:** No
-- **Evidence:** Needs user phone/Omi interaction.
+- **Status:** Partially complete; waiting for real phone/Omi request
+- **Verified:** Code path yes, real phone request no
+- **Evidence:** 34 tests pass. Live bridge returns known UID sightings through protected `/api/known-uids`. Current sightings are smoke/test UIDs, so trust config is not changed.
 
 ### Stage 4: Tailscale Funnel Decision
 - **Intent:** Decide whether to keep Cloudflare fallback or fix Tailscale Funnel in admin settings.
@@ -183,7 +186,7 @@ First make the state readable: plan, status report, checklist. Then close the pr
   - [ ] public `/health/quick` check
 - **Status:** Blocked
 - **Verified:** No
-- **Evidence:** Current doctor says Tailscale Funnel blocked by tailnet HTTPS/cert settings.
+- **Evidence:** `scripts/start_tailscale_funnel.ps1` fails because Tailscale HTTPS certificates are not available for this tailnet yet. This requires HTTPS/Funnel support in the Tailscale admin console.
 
 ### Stage 5: Final Whole-State Verification
 - **Intent:** Confirm no chaos after changes.
@@ -210,10 +213,10 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - [x] "If this shipped now, what would embarrass us?" answered and fixed or recorded.
 
 ## 11. Delivery Report
-- What was done: Created an elite-planner living plan, created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, pushed local work to GitHub, and verified the whole current state.
+- What was done: Created an elite-planner living plan, created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, pushed local work to GitHub, added automatic Omi UID sighting capture, and verified the whole current state.
 - Skills/tools used and what each contributed: `elite-planner` structured the plan/gaps; Git CLI committed and pushed; Pytest verified app behavior; local connection scripts verified bridge/Obsidian/Cockpit/Claude.
 - How verified: `python -m pytest -q` -> 33 passed; local connection check -> all OK; worktree candidate -> READY dirtyCount 0; git status -> synced with `origin/master`.
-- Known limitations / deferred items: Tailscale Funnel is blocked by admin/cert settings; real Omi UID still needs capture before trusted autorun; Omi phone setup URL may need refresh if Cloudflare URL changes.
+- Known limitations / deferred items: Tailscale Funnel is blocked by admin/cert settings; the first real Omi UID still needs an actual phone request before trusted autorun; Omi phone setup URL may need refresh if Cloudflare URL changes.
 - Decisions the user should know about: Autorun remains off by default; Cloudflare quick tunnel is current public fallback; worktree-swarm is ready but should only be used when explicitly requested.
 
 ## 12. Change Log
@@ -221,3 +224,4 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - 2026-05-15T14:06:00+02:00 - Completed Stage 1: created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, and verified tests/local connections/diff check.
 - 2026-05-15T14:08:00+02:00 - Completed Stage 2: pushed local `master` to GitHub.
 - 2026-05-15T14:11:00+02:00 - Completed final whole-state verification and delivery report.
+- 2026-05-15T14:35:00+02:00 - Added automatic UID sighting capture, protected `/api/known-uids`, a regression test, and live bridge verification.

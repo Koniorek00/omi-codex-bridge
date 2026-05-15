@@ -52,8 +52,16 @@ class BridgeStorage:
                     created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS uid_sightings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uid TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, id);
+                CREATE INDEX IF NOT EXISTS idx_uid_sightings_uid ON uid_sightings(uid, created_at DESC);
                 """
             )
             self._connection.commit()
@@ -98,6 +106,7 @@ class BridgeStorage:
         job = self.get_job(f"job-{job_id}")
         if inserted and job:
             self.add_event(job["id"], "job.created", "Job queued from Omi.")
+            self.record_uid(uid, source)
         return job, inserted
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
@@ -183,6 +192,49 @@ class BridgeStorage:
             self._connection.commit()
             event_id = int(cursor.lastrowid)
         return {"id": event_id, "job_id": job_id, "kind": kind, "message": message, "created_at": now}
+
+    def record_uid(self, uid: str | None, source: str) -> dict[str, Any] | None:
+        clean_uid = " ".join((uid or "").split())[:160]
+        clean_source = " ".join((source or "unknown").split())[:120]
+        if not clean_uid:
+            return None
+        now = utc_now_iso()
+        with self._lock:
+            cursor = self._connection.execute(
+                "INSERT INTO uid_sightings(uid, source, created_at) VALUES (?, ?, ?)",
+                (clean_uid, clean_source, now),
+            )
+            self._connection.commit()
+            sighting_id = int(cursor.lastrowid)
+        return {"id": sighting_id, "uid": clean_uid, "source": clean_source, "created_at": now}
+
+    def list_known_uids(self, limit: int = 50) -> list[dict[str, Any]]:
+        safe_limit = max(1, min(limit, 200))
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT uid, MAX(created_at) AS last_seen, COUNT(*) AS seen_count, GROUP_CONCAT(DISTINCT source) AS sources
+                FROM (
+                    SELECT uid, source, created_at FROM uid_sightings
+                    UNION ALL
+                    SELECT uid, source, created_at FROM jobs
+                )
+                WHERE uid IS NOT NULL AND TRIM(uid) != ''
+                GROUP BY uid
+                ORDER BY last_seen DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+        return [
+            {
+                "uid": row["uid"],
+                "last_seen": row["last_seen"],
+                "seen_count": int(row["seen_count"]),
+                "sources": sorted(source for source in (row["sources"] or "").split(",") if source),
+            }
+            for row in rows
+        ]
 
     def list_events(self, job_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         safe_limit = max(1, min(limit, 300))

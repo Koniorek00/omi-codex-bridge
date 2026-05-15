@@ -225,6 +225,9 @@ def create_app(
             storage.add_event(None, "obsidian.export_failed", str(exc))
             return None
 
+    def record_omi_uid(uid: str | None, source: str) -> None:
+        storage.record_uid(uid, source)
+
     def job_brief(job: dict[str, Any]) -> str:
         prompt = " ".join(job["prompt"].split())
         if len(prompt) > 180:
@@ -703,6 +706,7 @@ def create_app(
     @app.post("/omi/{token}/tools/start_codex_task")
     async def start_codex_task(token: str, payload: StartCodexTaskRequest, background: BackgroundTasks) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         try:
             workspace = str(config.normalize_workspace(payload.workspace))
         except ValueError as exc:
@@ -729,11 +733,13 @@ def create_app(
     @app.post("/omi/{token}/tools/open_desktop_file")
     async def open_desktop_file_tool(token: str, payload: OpenDesktopFileRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         return open_desktop_file(payload.query, payload.create_demo_if_needed)
 
     @app.post("/omi/{token}/tools/show_on_android")
     async def show_on_android_tool(token: str, payload: ShowOnAndroidRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         return await asyncio.to_thread(
             show_on_android,
             payload.uid,
@@ -745,6 +751,7 @@ def create_app(
     @app.post("/omi/{token}/tools/check_phone_status")
     async def check_phone_status_tool(token: str, payload: CheckPhoneStatusRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         phone = await asyncio.to_thread(android_status, config, include_power=True, include_guards=True)
         if not phone["adb_found"]:
             return {"result": "Phone channel blocked: adb is not on PATH."}
@@ -767,6 +774,7 @@ def create_app(
     @app.post("/omi/{token}/tools/quick_codex_task")
     async def quick_codex_task(token: str, payload: QuickCodexTaskRequest, background: BackgroundTasks) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         try:
             workspace = str(config.normalize_workspace(payload.workspace))
         except ValueError as exc:
@@ -794,11 +802,13 @@ def create_app(
     @app.post("/omi/{token}/tools/run_codex_job")
     async def run_codex_job_tool(token: str, payload: RunCodexJobRequest, background: BackgroundTasks) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         return schedule_existing_job(payload.job_id, background)
 
     @app.post("/omi/{token}/tools/run_next_codex_job")
     async def run_next_codex_job_tool(token: str, payload: RunNextCodexJobRequest, background: BackgroundTasks) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         status = payload.status or "pending"
         job = storage.first_job_with_status(status)
         if not job:
@@ -808,6 +818,7 @@ def create_app(
     @app.post("/omi/{token}/tools/list_codex_jobs")
     async def list_codex_jobs_tool(token: str, payload: ListCodexJobsRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         jobs = storage.list_jobs(payload.limit, payload.status)
         if not jobs:
             suffix = f" with status {payload.status}" if payload.status else ""
@@ -818,6 +829,7 @@ def create_app(
     @app.post("/omi/{token}/tools/get_codex_job")
     async def get_codex_job_tool(token: str, payload: GetCodexJobRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         job = storage.get_job(payload.job_id)
         if not job:
             return {"error": f"Job {payload.job_id} was not found."}
@@ -830,6 +842,7 @@ def create_app(
     @app.post("/omi/{token}/tools/get_codex_job_output")
     async def get_codex_job_output_tool(token: str, payload: GetCodexJobOutputRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         job = storage.get_job(payload.job_id)
         if not job:
             return {"error": f"Job {payload.job_id} was not found."}
@@ -841,6 +854,7 @@ def create_app(
     @app.post("/omi/{token}/tools/cancel_codex_job")
     async def cancel_codex_job_tool(token: str, payload: CancelCodexJobRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         try:
             job = storage.cancel_job(payload.job_id)
         except KeyError:
@@ -853,6 +867,7 @@ def create_app(
     @app.post("/omi/{token}/tools/retry_codex_job")
     async def retry_codex_job_tool(token: str, payload: RetryCodexJobRequest, background: BackgroundTasks) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         try:
             job = storage.retry_job(payload.job_id)
         except KeyError:
@@ -879,6 +894,7 @@ def create_app(
     @app.post("/omi/{token}/tools/check_bridge_status")
     async def check_bridge_status_tool(token: str, payload: CheckBridgeStatusRequest) -> dict[str, str]:
         check_token(token)
+        record_omi_uid(payload.uid, payload.tool_name)
         status = await asyncio.to_thread(health_payload)
         counts = ", ".join(f"{key}: {value}" for key, value in sorted(status["queue_counts"].items())) or "none"
         token_warning = " Default token is still active." if status["using_default_token"] else ""
@@ -908,6 +924,7 @@ def create_app(
         session_id: str | None = Query(None),
     ) -> dict[str, Any]:
         check_token(token)
+        record_omi_uid(uid, "webhook.realtime")
         body = await request.json()
         raw_segments = transcript_segments_from_body(body)
         active_session_id = session_id or (body.get("session_id") if isinstance(body, dict) else None) or f"{uid}-default"
@@ -991,6 +1008,7 @@ def create_app(
         uid: str = Query(...),
     ) -> dict[str, Any]:
         check_token(token)
+        record_omi_uid(uid, "webhook.memory")
         body = await request.json()
         if not isinstance(body, dict):
             raise HTTPException(status_code=400, detail="Expected an Omi memory object.")
@@ -1073,6 +1091,11 @@ def create_app(
     async def api_jobs(token: str, limit: int = Query(50), status: str | None = Query(None)) -> dict[str, Any]:
         check_token(token)
         return {"jobs": storage.list_jobs(limit, status)}
+
+    @app.get("/omi/{token}/api/known-uids")
+    async def api_known_uids(token: str, limit: int = Query(50)) -> dict[str, Any]:
+        check_token(token)
+        return {"known_uids": storage.list_known_uids(limit)}
 
     @app.post("/omi/{token}/api/jobs")
     async def api_create_job(token: str, payload: dict[str, Any]) -> dict[str, Any]:
