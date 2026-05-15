@@ -175,4 +175,5 @@ Not complete: blocked by missing Omi MCP API key, phone lock for Omi app setting
 - 2026-05-15T15:47:00+02:00 - Verified Aria Companion phone-agent path, patched Android service/device-key persistence issue, reinstalled APK, and confirmed quiet phone state.
 - 2026-05-15T16:05:00+02:00 - Hardened trusted autorun setup script, added trusted flags to known UID API, and added known UID dashboard panel.
 - 2026-05-15T16:15:00+02:00 - Repaired Polish trigger parsing for real diacritics and added regression assertions.
+- 2026-05-15T16:20:00+02:00 - Added UID capture for day-summary webhooks and regression coverage.
 - 2026-05-15T16:00:00+02:00 - Verified Windows startup entries for Aria, Omi bridge watchdog, and Android keepalive; process-hygiene audit found no safe close candidates.

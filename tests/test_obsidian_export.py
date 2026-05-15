@@ -82,6 +82,9 @@ def test_day_summary_webhook_writes_event_note(tmp_path: Path) -> None:
     assert note.is_file()
     text = note.read_text(encoding="utf-8")
     assert "Finished Obsidian bridge wiring." in text
+    known = client.get("/omi/test-token/api/known-uids").json()["known_uids"]
+    assert known[0]["uid"] == "u1"
+    assert "webhook.day-summary" in known[0]["sources"]
 
 
 def test_mock_runner_updates_job_note_status(tmp_path: Path) -> None:

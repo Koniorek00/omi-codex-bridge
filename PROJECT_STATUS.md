@@ -16,7 +16,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 - Codex job queue with manual run controls.
 - Autorun disabled by default.
 - Trusted UID gate for future autorun.
-- Automatic UID sighting log for Omi tools and webhooks.
+- Automatic UID sighting log for Omi tools, realtime, memory, and day-summary webhooks.
 - Protected `/api/known-uids` endpoint to inspect captured Omi UIDs.
 - Dashboard known-UID panel that marks trusted UIDs.
 - Durable trusted autorun setup script for local runtime files.

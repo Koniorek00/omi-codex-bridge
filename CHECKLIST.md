@@ -9,6 +9,7 @@ Mission: keep the Omi -> Codex -> PC/Android bridge usable, quiet on the phone, 
 - [x] Startup watchdog exists through the user Startup shortcut fallback.
 - [x] Autorun is gated by trusted Omi uid settings before any automatic job start.
 - [x] Bridge records known Omi UIDs from tool and webhook requests.
+- [x] UID capture covers realtime, memory, day-summary, and tool calls.
 - [x] Protected `/api/known-uids` endpoint lists captured UID sightings for setup/trust decisions.
 - [x] Trusted UID and autorun settings can now persist through `runtime/trusted-uids.txt` and `runtime/autorun.enabled`.
 - [x] Trusted autorun setup script validates UID edits, can remove UIDs, and refuses unsafe enable/disable conflicts.

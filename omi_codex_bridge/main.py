@@ -1077,6 +1077,7 @@ def create_app(
     @app.post("/omi/{token}/webhooks/day-summary")
     async def day_summary_webhook(token: str, request: Request, uid: str = Query(...)) -> dict[str, Any]:
         check_token(token)
+        record_omi_uid(uid, "webhook.day-summary")
         body = await request.json()
         if not isinstance(body, dict):
             raise HTTPException(status_code=400, detail="Expected an Omi day summary object.")
