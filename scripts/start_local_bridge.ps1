@@ -8,6 +8,7 @@ param(
   [switch]$DisableObsidian,
   [switch]$DisablePhoneStatus,
   [switch]$ExpandAndroidNotifications,
+  [switch]$EnableAutorun,
   [string]$TrustedUids = "",
   [string]$TokenFile = "runtime\current-token.txt"
 )
@@ -16,6 +17,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $tokenPath = Join-Path $root $TokenFile
 $runtimeDir = Join-Path $root "runtime"
+$trustedUidsPath = Join-Path $runtimeDir "trusted-uids.txt"
+$autorunFlagPath = Join-Path $runtimeDir "autorun.enabled"
 
 if (-not (Test-Path $runtimeDir)) {
   New-Item -ItemType Directory -Path $runtimeDir | Out-Null
@@ -33,13 +36,22 @@ if ($token.Length -lt 32) {
   throw "Bridge token is too short. Delete $tokenPath and rerun this script."
 }
 
+if (-not $TrustedUids -and (Test-Path -LiteralPath $trustedUidsPath)) {
+  $TrustedUids = ((Get-Content -LiteralPath $trustedUidsPath |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { $_ -and -not $_.StartsWith("#") }) -join ",")
+}
+
+$autorunEnabled = $EnableAutorun -or (Test-Path -LiteralPath $autorunFlagPath)
+
 $env:OMI_CODEX_BRIDGE_TOKEN = $token
 $env:OMI_CODEX_TOKEN_FILE = $tokenPath
 $env:OMI_CODEX_WORKSPACE = $Workspace
 $env:OMI_CODEX_ALLOWED_WORKSPACES = $AllowedWorkspaces
-$env:OMI_CODEX_AUTORUN = "0"
+$env:OMI_CODEX_AUTORUN = if ($autorunEnabled) { "1" } else { "0" }
 $env:OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID = "1"
 $env:OMI_CODEX_TRUSTED_UIDS = $TrustedUids
+$env:OMI_CODEX_TRUSTED_UIDS_FILE = $trustedUidsPath
 $env:OMI_CODEX_RUNNER = "codex"
 $env:OMI_CODEX_RUNTIME_DIR = $runtimeDir
 $env:OMI_OBSIDIAN_ENABLED = if ($DisableObsidian) { "0" } else { "1" }
@@ -77,6 +89,9 @@ if ($Background) {
   }
   if ($ExpandAndroidNotifications) {
     $argList += "-ExpandAndroidNotifications"
+  }
+  if ($EnableAutorun) {
+    $argList += "-EnableAutorun"
   }
   Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr | Out-Null
   Write-Host "Omi Codex Bridge starting in background on http://127.0.0.1:$Port"

@@ -345,6 +345,20 @@ def test_known_uids_capture_non_job_tool_calls(tmp_path: Path, monkeypatch) -> N
     assert "check_phone_status" in known[0]["sources"]
 
 
+def test_known_uids_marks_trusted_uids(tmp_path: Path) -> None:
+    client = make_client(tmp_path, trusted_uids=("real-omi-user",))
+    client.post(
+        "/omi/test-token/tools/list_codex_jobs",
+        json={"uid": "real-omi-user", "app_id": "omi_codex_bridge", "tool_name": "list_codex_jobs", "limit": 5},
+    )
+
+    response = client.get("/omi/test-token/api/known-uids").json()
+
+    assert response["trusted_uid_count"] == 1
+    assert response["known_uids"][0]["uid"] == "real-omi-user"
+    assert response["known_uids"][0]["trusted"] is True
+
+
 def test_phone_status_updates_are_delivered_without_expanding_notifications(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
     client = make_client(tmp_path, phone_status_updates=True)

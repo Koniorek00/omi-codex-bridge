@@ -182,6 +182,20 @@ http://127.0.0.1:8766/omi/YOUR_TOKEN/api/known-uids
 
 Use the real phone UID from this list only when intentionally adding `OMI_CODEX_TRUSTED_UIDS` for trusted autorun.
 
+Trusted autorun can be prepared without editing env vars by hand:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\set_trusted_autorun.ps1 -Uid REAL_OMI_UID
+powershell -ExecutionPolicy Bypass -File .\scripts\set_trusted_autorun.ps1 -Enable
+powershell -ExecutionPolicy Bypass -File .\scripts\set_trusted_autorun.ps1 -List
+```
+
+Disable it again with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\set_trusted_autorun.ps1 -Disable
+```
+
 The manifest also exposes Omi `chat_messages` so Omi knows the app can send app-chat messages.
 
 The Android helper can open the Omi app after ADB is authorized:
@@ -258,6 +272,7 @@ Notes are kept in `OMI_RESEARCH_NOTES.md`.
 - Jobs queue by default. They do not run until you press Run in the dashboard or call the run endpoint/tool.
 - `OMI_CODEX_AUTORUN=1` exists, but should stay off unless you accept the risk.
 - If autorun is enabled, `OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID=1` keeps automatic starts limited to `OMI_CODEX_TRUSTED_UIDS`.
+- `runtime\trusted-uids.txt` and `runtime\autorun.enabled` are local runtime files. They are not committed.
 - The Codex CLI runs with `--sandbox workspace-write` and `-c approval_policy="never"`, not with bypassed sandbox.
 
 ## Codex command used

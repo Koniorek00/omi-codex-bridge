@@ -13,6 +13,25 @@ def _split_values(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.replace(";", ",").split(",") if item.strip())
 
 
+def _read_values_file(path: Path) -> tuple[str, ...]:
+    if not path.is_file():
+        return ()
+    values: list[str] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        item = line.strip()
+        if not item or item.startswith("#"):
+            continue
+        values.extend(_split_values(item))
+    return tuple(dict.fromkeys(values))
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class BridgeConfig:
     token: str
@@ -72,6 +91,14 @@ class BridgeConfig:
                 token = token_file.read_text(encoding="utf-8", errors="replace").strip()
         if not token:
             token = "dev-token-change-me"
+        trusted_uids_raw = os.getenv("OMI_CODEX_TRUSTED_UIDS", "").strip()
+        trusted_uids_file_raw = os.getenv("OMI_CODEX_TRUSTED_UIDS_FILE", str(runtime_dir / "trusted-uids.txt")).strip()
+        trusted_uids_file = Path(trusted_uids_file_raw).expanduser()
+        if not trusted_uids_file.is_absolute():
+            trusted_uids_file = (runtime_dir / trusted_uids_file).resolve()
+        trusted_uids = _split_values(trusted_uids_raw) if trusted_uids_raw else _read_values_file(trusted_uids_file)
+
+        autorun_default = (runtime_dir / "autorun.enabled").is_file()
         notification_mode = os.getenv("OMI_NOTIFICATION_MODE", "auto").strip().lower()
         if notification_mode not in {"auto", "adb", "omi"}:
             notification_mode = "auto"
@@ -84,7 +111,7 @@ class BridgeConfig:
             database_path=runtime_dir / "bridge.db",
             default_workspace=default_workspace,
             allowed_workspaces=allowed,
-            autorun=os.getenv("OMI_CODEX_AUTORUN", "0").strip().lower() in {"1", "true", "yes", "on"},
+            autorun=_env_bool("OMI_CODEX_AUTORUN", autorun_default),
             runner_mode=os.getenv("OMI_CODEX_RUNNER", "codex").strip().lower(),
             codex_timeout_seconds=int(os.getenv("OMI_CODEX_TIMEOUT_SECONDS", "1800")),
             obsidian_enabled=os.getenv("OMI_OBSIDIAN_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"},
@@ -98,7 +125,7 @@ class BridgeConfig:
             omi_chat_messages_target=chat_target,
             omi_chat_messages_notify=os.getenv("OMI_CHAT_MESSAGES_NOTIFY", "0").strip().lower() in {"1", "true", "yes", "on"},
             phone_status_updates=os.getenv("OMI_CODEX_PHONE_STATUS_UPDATES", "1").strip().lower() in {"1", "true", "yes", "on"},
-            trusted_uids=_split_values(os.getenv("OMI_CODEX_TRUSTED_UIDS", "")),
+            trusted_uids=trusted_uids,
             autorun_requires_trusted_uid=os.getenv("OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID", "1").strip().lower()
             in {"1", "true", "yes", "on"},
             android_serial=os.getenv("OMI_ANDROID_SERIAL", "").strip() or None,

@@ -18,6 +18,8 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 - Trusted UID gate for future autorun.
 - Automatic UID sighting log for Omi tools and webhooks.
 - Protected `/api/known-uids` endpoint to inspect captured Omi UIDs.
+- Dashboard known-UID panel that marks trusted UIDs.
+- Durable trusted autorun setup script for local runtime files.
 - Android phone notifications through ADB.
 - Quiet phone behavior by default.
 - Fast scheduled-task check for Android wake guards, with PowerShell fallback.
@@ -40,7 +42,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 
 ## Current Verification
 
-- `python -m pytest -q` passes: 35 tests.
+- `python -m pytest -q` passes: 37 tests.
 - Live local bridge answers `/health/quick`.
 - Live local bridge answers protected `/api/known-uids`.
 - Current Cloudflare public URL answers `/health/quick`.

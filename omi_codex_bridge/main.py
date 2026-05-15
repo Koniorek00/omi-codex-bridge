@@ -1095,7 +1095,16 @@ def create_app(
     @app.get("/omi/{token}/api/known-uids")
     async def api_known_uids(token: str, limit: int = Query(50)) -> dict[str, Any]:
         check_token(token)
-        return {"known_uids": storage.list_known_uids(limit)}
+        trusted = set(config.trusted_uids)
+        known_uids = storage.list_known_uids(limit)
+        for item in known_uids:
+            item["trusted"] = item["uid"] in trusted
+        return {
+            "known_uids": known_uids,
+            "trusted_uid_count": len(trusted),
+            "autorun": config.autorun,
+            "autorun_requires_trusted_uid": config.autorun_requires_trusted_uid,
+        }
 
     @app.post("/omi/{token}/api/jobs")
     async def api_create_job(token: str, payload: dict[str, Any]) -> dict[str, Any]:

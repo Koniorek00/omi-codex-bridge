@@ -50,6 +50,7 @@ def render_dashboard(token: str, default_workspace: str, using_default_token: bo
         .panel {{ background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 18px 42px rgba(20, 25, 20, 0.07); }}
         .panel.create {{ grid-column: span 5; }}
         .panel.jobs {{ grid-column: span 7; }}
+        .panel.uids {{ grid-column: span 5; }}
         .panel.output, .panel.events {{ grid-column: span 12; }}
         .head {{ padding: 15px 16px; border-bottom: 1px solid var(--line); font-weight: 780; display: flex; justify-content: space-between; align-items: center; gap: 10px; }}
         .body {{ padding: 14px; }}
@@ -71,10 +72,13 @@ def render_dashboard(token: str, default_workspace: str, using_default_token: bo
         .status.succeeded {{ background: #e8f5dc; color: #3b6a1b; }}
         .meta {{ color: var(--muted); font-size: 12px; }}
         .prompt {{ color: #2e372f; font-size: 13px; }}
+        .uid-row {{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }}
+        .uid-row:last-child {{ border-bottom: 0; }}
+        .uid-name {{ font-weight: 760; overflow-wrap: anywhere; }}
         pre {{ margin: 0; padding: 12px; border-radius: 8px; background: #101610; color: #eef6eb; overflow: auto; max-height: 260px; }}
         @media (max-width: 980px) {{
           .shell {{ grid-template-columns: 1fr; }}
-          .panel.create, .panel.jobs {{ grid-column: span 12; }}
+          .panel.create, .panel.jobs, .panel.uids {{ grid-column: span 12; }}
         }}
         @media (max-width: 600px) {{
           main {{ padding: 18px; }}
@@ -127,6 +131,10 @@ def render_dashboard(token: str, default_workspace: str, using_default_token: bo
               <div class="head">Jobs <button id="reload" class="secondary">Reload</button></div>
               <div class="body" id="jobs"></div>
             </section>
+            <section class="panel uids">
+              <div class="head">Known UIDs</div>
+              <div class="body" id="uids"></div>
+            </section>
             <section class="panel output">
               <div class="head">Selected output</div>
               <div class="body"><pre id="output">Select a job output to inspect it.</pre></div>
@@ -151,17 +159,31 @@ def render_dashboard(token: str, default_workspace: str, using_default_token: bo
           queue: document.querySelector("#queue"),
           refresh: document.querySelector("#refresh"),
           reload: document.querySelector("#reload"),
+          uids: document.querySelector("#uids"),
         }};
         const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, ch => ({{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}}[ch]));
         async function load() {{
-          const [jobsRes, eventsRes] = await Promise.all([
+          const [jobsRes, eventsRes, uidsRes] = await Promise.all([
             fetch(`${{apiBase}}/api/jobs`),
             fetch(`${{apiBase}}/api/events`),
+            fetch(`${{apiBase}}/api/known-uids`),
           ]);
           const jobs = await jobsRes.json();
           const events = await eventsRes.json();
+          const uids = await uidsRes.json();
           els.jobs.innerHTML = jobs.jobs.length ? jobs.jobs.map(renderJob).join("") : "<div class='meta'>No jobs queued yet.</div>";
+          els.uids.innerHTML = uids.known_uids.length ? uids.known_uids.map(renderUid).join("") : "<div class='meta'>No Omi UIDs seen yet.</div>";
           els.events.textContent = events.events.map(e => `${{e.created_at}} ${{e.kind}} ${{e.job_id || ""}} ${{e.message}}`).join("\\n");
+        }}
+        function renderUid(item) {{
+          const trusted = item.trusted ? "<span class='status succeeded'>trusted</span>" : "<span class='status cancelled'>seen</span>";
+          return `<div class="uid-row">
+            <div>
+              <div class="uid-name">${{escapeHtml(item.uid)}}</div>
+              <div class="meta">${{escapeHtml(item.last_seen)}} &middot; ${{escapeHtml((item.sources || []).join(", "))}}</div>
+            </div>
+            <div class="actions">${{trusted}}<button class="secondary" data-use-uid="${{escapeHtml(item.uid)}}">Use</button></div>
+          </div>`;
         }}
         function renderJob(job) {{
           const statusClass = ["failed", "running", "cancelled", "succeeded"].includes(job.status) ? job.status : "";
@@ -206,6 +228,12 @@ def render_dashboard(token: str, default_workspace: str, using_default_token: bo
           }}
           await load();
           window.setTimeout(load, 1200);
+        }});
+        els.uids.addEventListener("click", (event) => {{
+          const use = event.target.closest("button[data-use-uid]");
+          if (use) {{
+            els.uid.value = use.dataset.useUid;
+          }}
         }});
         els.refresh.addEventListener("click", load);
         els.reload.addEventListener("click", load);

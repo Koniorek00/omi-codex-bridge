@@ -10,3 +10,5 @@
 - Use `/health/quick` for watchdog/tunnel liveness and keep full `/health` for deeper diagnostics because ADB and Windows task checks can be slow.
 - If environment variables are missing, the bridge should read `runtime/current-token.txt` instead of exposing the dev token.
 - Keep long ADB/status operations in worker threads so the bridge can still answer liveness checks and Omi tool calls while diagnostics are running.
+- Keep full autorun gated until a real Omi UID is captured. The bridge now has durable autorun files, but they should not be enabled for smoke/test UIDs.
+- Use Claude Opus through the local Bedrock proxy as a reviewer/test oracle without changing global API settings.
