@@ -225,3 +225,5 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - 2026-05-15T14:08:00+02:00 - Completed Stage 2: pushed local `master` to GitHub.
 - 2026-05-15T14:11:00+02:00 - Completed final whole-state verification and delivery report.
 - 2026-05-15T14:35:00+02:00 - Added automatic UID sighting capture, protected `/api/known-uids`, a regression test, and live bridge verification.
+- 2026-05-15T14:40:00+02:00 - Verified current Cloudflare public health and Omi tool manifest: healthy, 14 tools, chat messages enabled.
+- 2026-05-15T14:45:00+02:00 - Preserved and tested the scheduled-task wake guard optimization in `phone.py`; test suite is now 35 passing tests.

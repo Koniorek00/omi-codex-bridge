@@ -190,6 +190,42 @@ def _device_power(adb_prefix: list[str]) -> dict[str, Any]:
 
 
 def _wake_guard_tasks() -> dict[str, Any]:
+    names = ["AndroidConnection BackgroundGuard", "AndroidConnection VolumeWake", "AndroidConnection KeepAlive"]
+    schtasks = shutil.which("schtasks")
+    if schtasks:
+        rows: list[dict[str, str]] = []
+        for name in names:
+            try:
+                result = _run([schtasks, "/Query", "/TN", name, "/FO", "LIST", "/V"], timeout=3)
+            except Exception:
+                rows.append({"name": name, "state": "unknown", "actions": ""})
+                continue
+            if result.returncode != 0:
+                rows.append({"name": name, "state": "not_installed", "actions": ""})
+                continue
+            fields: dict[str, str] = {}
+            for line in result.stdout.splitlines():
+                if ":" not in line:
+                    continue
+                key, value = line.split(":", 1)
+                fields[key.strip()] = value.strip()
+            rows.append(
+                {
+                    "name": name,
+                    "state": fields.get("Status") or fields.get("Scheduled Task State") or "unknown",
+                    "actions": fields.get("Task To Run", ""),
+                }
+            )
+        return {
+            "available": True,
+            "tasks": rows,
+            "wake_guards_disabled": all(
+                row.get("state") == "not_installed"
+                for row in rows
+                if row.get("name") in {"AndroidConnection BackgroundGuard", "AndroidConnection VolumeWake"}
+            ),
+        }
+
     powershell = shutil.which("powershell")
     if not powershell:
         return {"available": False, "reason": "powershell not found"}

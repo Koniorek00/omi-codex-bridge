@@ -20,6 +20,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 - Protected `/api/known-uids` endpoint to inspect captured Omi UIDs.
 - Android phone notifications through ADB.
 - Quiet phone behavior by default.
+- Fast scheduled-task check for Android wake guards, with PowerShell fallback.
 - `check_phone_status` tool.
 - Obsidian export and Obsidian Local REST connection.
 - `/health/quick` for fast liveness checks.
@@ -39,9 +40,11 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 
 ## Current Verification
 
-- `python -m pytest -q` passes: 34 tests.
+- `python -m pytest -q` passes: 35 tests.
 - Live local bridge answers `/health/quick`.
 - Live local bridge answers protected `/api/known-uids`.
+- Current Cloudflare public URL answers `/health/quick`.
+- Public Omi tool manifest loads with 14 tools and chat messages enabled.
 - Local connection check passes:
   - core skills OK
   - workflow boundary OK

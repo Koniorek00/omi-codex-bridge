@@ -105,3 +105,33 @@ def test_android_status_marks_guarded_phone_not_quiet(monkeypatch: pytest.Monkey
 
     assert status["available"] is True
     assert status["quiet_ready"] is False
+
+
+def test_wake_guard_tasks_prefers_schtasks(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_which(name: str) -> str | None:
+        return "schtasks" if name == "schtasks" else None
+
+    def fake_run(args: list[str], timeout: int = 10) -> SimpleNamespace:
+        task_name = args[args.index("/TN") + 1]
+        if task_name in {"AndroidConnection BackgroundGuard", "AndroidConnection VolumeWake"}:
+            return SimpleNamespace(stdout="", stderr="not found", returncode=1)
+        return SimpleNamespace(
+            stdout="\n".join(
+                [
+                    f"TaskName: {task_name}",
+                    "Status: Ready",
+                    "Task To Run: powershell.exe -File keepalive.ps1",
+                ]
+            ),
+            stderr="",
+            returncode=0,
+        )
+
+    monkeypatch.setattr(phone.shutil, "which", fake_which)
+    monkeypatch.setattr(phone, "_run", fake_run)
+
+    guards = phone._wake_guard_tasks()
+
+    assert guards["available"] is True
+    assert guards["wake_guards_disabled"] is True
+    assert [row["state"] for row in guards["tasks"]] == ["not_installed", "not_installed", "Ready"]
