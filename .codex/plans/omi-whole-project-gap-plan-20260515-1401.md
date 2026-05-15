@@ -1,6 +1,6 @@
 # Plan: Omi Whole Project Gap Plan
 **Created:** 2026-05-15T14:01:30+02:00
-**Status:** In Progress
+**Status:** Complete
 **Risk Level:** Medium
 **Reversal Cost:** Low to medium. Most work is docs, checks, git sync, and additive hardening; remote push is reversible by later commits.
 **Skills Orchestrated:** elite-planner
@@ -11,14 +11,14 @@
 Create a clear, normal project report for the whole Omi/Codex bridge state: what works, what is missing, what is blocked, what is next, and what still needs execution. Then start closing the highest-value gaps without creating chaos.
 
 ## 2. Definition of Done
-- [ ] A living plan exists in `.codex/plans/` and lists current state, gaps, and next tasks.
-- [ ] A simple user-facing status report exists in the repo.
-- [ ] Project checklist shows done, pending, and blocked items.
-- [ ] Current code remains verified with `python -m pytest -q`.
-- [ ] Local connections are checked and the result is recorded.
-- [ ] Git state is clean or every dirty file is explained.
+- [x] A living plan exists in `.codex/plans/` and lists current state, gaps, and next tasks.
+- [x] A simple user-facing status report exists in the repo.
+- [x] Project checklist shows done, pending, and blocked items.
+- [x] Current code remains verified with `python -m pytest -q`.
+- [x] Local connections are checked and the result is recorded.
+- [x] Git state is clean or every dirty file is explained.
 - [x] GitHub/remote sync is either completed or marked blocked with a concrete reason.
-- [ ] Existing behavior remains intact: Omi bridge, phone notifications, Obsidian REST, Codex queue, trusted autorun gate, quick health.
+- [x] Existing behavior remains intact: Omi bridge, phone notifications, Obsidian REST, Codex queue, trusted autorun gate, quick health.
 
 ## 3. Reconnaissance Notes
 - Files read:
@@ -189,34 +189,35 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - **Intent:** Confirm no chaos after changes.
 - **Delegated to:** planner direct.
 - **Implementation steps:**
-  - [ ] Run pytest.
-  - [ ] Run local connection check.
-  - [ ] Check git clean.
-  - [ ] Update plan delivery report.
+  - [x] Run pytest.
+  - [x] Run local connection check.
+  - [x] Check git clean.
+  - [x] Update plan delivery report.
 - **Verification gate:**
-  - [ ] All prior gates green or explicitly blocked/deferred.
-- **Status:** Not started
-- **Verified:** No
-- **Evidence:** Pending.
+  - [x] All prior gates green or explicitly blocked/deferred.
+- **Status:** Complete
+- **Verified:** Yes
+- **Evidence:** `python -m pytest -q` -> 33 passed. `check-local-connections.ps1` -> all listed checks OK. `check-worktree-candidate.ps1` -> READY, dirtyCount 0. `git status -sb` -> `## master...origin/master`.
 
 ## 10. Final Whole-Task Verification
-- [ ] Re-read original request top to bottom; every ask addressed.
-- [ ] All Definition of Done items checked with evidence.
-- [ ] `WORKLOG.md`, `CHECKLIST.md`, and `DECISIONS.md` updated.
-- [ ] No unchecked non-deferred checklist item remains.
-- [ ] Regression criteria re-verified end-to-end.
-- [ ] Assumption Ledger reviewed.
-- [ ] No debug code, scratch files, commented experiments, unused assets.
-- [ ] "If this shipped now, what would embarrass us?" answered and fixed or recorded.
+- [x] Re-read original request top to bottom; every ask addressed.
+- [x] All Definition of Done items checked with evidence.
+- [x] `WORKLOG.md`, `CHECKLIST.md`, and `DECISIONS.md` updated.
+- [x] No unchecked non-deferred checklist item remains.
+- [x] Regression criteria re-verified end-to-end.
+- [x] Assumption Ledger reviewed.
+- [x] No debug code, scratch files, commented experiments, unused assets.
+- [x] "If this shipped now, what would embarrass us?" answered and fixed or recorded.
 
 ## 11. Delivery Report
-- What was done: Pending.
-- Skills/tools used and what each contributed: Pending.
-- How verified: Pending.
-- Known limitations / deferred items: Pending.
-- Decisions the user should know about: Pending.
+- What was done: Created an elite-planner living plan, created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, pushed local work to GitHub, and verified the whole current state.
+- Skills/tools used and what each contributed: `elite-planner` structured the plan/gaps; Git CLI committed and pushed; Pytest verified app behavior; local connection scripts verified bridge/Obsidian/Cockpit/Claude.
+- How verified: `python -m pytest -q` -> 33 passed; local connection check -> all OK; worktree candidate -> READY dirtyCount 0; git status -> synced with `origin/master`.
+- Known limitations / deferred items: Tailscale Funnel is blocked by admin/cert settings; real Omi UID still needs capture before trusted autorun; Omi phone setup URL may need refresh if Cloudflare URL changes.
+- Decisions the user should know about: Autorun remains off by default; Cloudflare quick tunnel is current public fallback; worktree-swarm is ready but should only be used when explicitly requested.
 
 ## 12. Change Log
 - 2026-05-15T14:01:30+02:00 - Created initial living plan from current project state.
 - 2026-05-15T14:06:00+02:00 - Completed Stage 1: created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, and verified tests/local connections/diff check.
 - 2026-05-15T14:08:00+02:00 - Completed Stage 2: pushed local `master` to GitHub.
+- 2026-05-15T14:11:00+02:00 - Completed final whole-state verification and delivery report.
