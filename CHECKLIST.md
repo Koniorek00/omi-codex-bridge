@@ -14,7 +14,7 @@ Mission: keep the Omi -> Codex -> PC/Android bridge usable, quiet on the phone, 
 - [x] Current project state report exists in `PROJECT_STATUS.md`.
 - [!] Tailscale Funnel blocked - tailnet HTTPS/Funnel certificates are not enabled in Tailscale admin settings.
 - [x] Commit or otherwise seal the current dirty worktree before any worktree-swarm builder run.
-- [ ] Push the 6 local commits to GitHub so `origin/master` matches local `master`.
+- [x] Push local commits to GitHub so `origin/master` matches local `master`.
 - [ ] After the user opens Omi on the phone, paste/update the current setup URL from `runtime/omi-setup.private.html` if the quick tunnel changes.
 - [ ] Capture the real Omi phone uid and put it in `OMI_CODEX_TRUSTED_UIDS` before enabling trusted autorun.
 - [ ] Decide whether Cloudflare quick tunnel stays primary or Tailscale Funnel should be fixed in Tailscale admin settings.

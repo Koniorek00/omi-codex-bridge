@@ -33,7 +33,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: G
 - Full public autorun is not enabled.
 - Real Omi phone `uid` is not captured into `OMI_CODEX_TRUSTED_UIDS`.
 - Omi phone-side setup may need a URL refresh if the Cloudflare quick tunnel changes.
-- Local commits still need to be pushed to GitHub if remote sharing is required.
+- GitHub `origin/master` is synced with local `master`.
 - Stronger public remote-control policy is still a future security/product decision.
 
 ## Current Verification
@@ -49,8 +49,8 @@ The main unfinished items are not core code bugs. They are setup/product gaps: G
 
 ## Next Checklist
 
-- [ ] Push local commits to GitHub.
-- [ ] Confirm GitHub branch is no longer behind local work.
+- [x] Push local commits to GitHub.
+- [x] Confirm GitHub branch is no longer behind local work.
 - [ ] If Cloudflare URL changed, update the Omi app setup URL on the phone.
 - [ ] Capture real Omi `uid` from an incoming request.
 - [ ] Add trusted UID only if autorun is intentionally enabled later.

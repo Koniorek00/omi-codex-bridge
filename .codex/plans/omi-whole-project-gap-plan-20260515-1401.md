@@ -17,7 +17,7 @@ Create a clear, normal project report for the whole Omi/Codex bridge state: what
 - [ ] Current code remains verified with `python -m pytest -q`.
 - [ ] Local connections are checked and the result is recorded.
 - [ ] Git state is clean or every dirty file is explained.
-- [ ] GitHub/remote sync is either completed or marked blocked with a concrete reason.
+- [x] GitHub/remote sync is either completed or marked blocked with a concrete reason.
 - [ ] Existing behavior remains intact: Omi bridge, phone notifications, Obsidian REST, Codex queue, trusted autorun gate, quick health.
 
 ## 3. Reconnaissance Notes
@@ -146,15 +146,15 @@ First make the state readable: plan, status report, checklist. Then close the pr
 - **Changes:** remote git state only.
 - **Must not break:** local clean state.
 - **Implementation steps:**
-  - [ ] Confirm clean status.
-  - [ ] Run `git push origin master`.
-  - [ ] Verify branch no longer ahead, or record blocker.
+  - [x] Confirm clean status.
+  - [x] Run `git push origin master`.
+  - [x] Verify branch no longer ahead, or record blocker.
 - **Verification gate:**
-  - [ ] `git status -sb`
-  - [ ] `git log --oneline --decorate -3`
-- **Status:** Not started
-- **Verified:** No
-- **Evidence:** Pending.
+  - [x] `git status -sb`
+  - [x] `git log --oneline --decorate -3`
+- **Status:** Complete
+- **Verified:** Yes
+- **Evidence:** `git push origin master` -> `a14bb42..62540da master -> master`. Pre-push status was `ahead 7`.
 
 ### Stage 3: Phone/Omi Final Setup
 - **Intent:** Close remaining setup tasks that need live phone/Omi context.
@@ -219,3 +219,4 @@ First make the state readable: plan, status report, checklist. Then close the pr
 ## 12. Change Log
 - 2026-05-15T14:01:30+02:00 - Created initial living plan from current project state.
 - 2026-05-15T14:06:00+02:00 - Completed Stage 1: created `PROJECT_STATUS.md`, updated `CHECKLIST.md`, and verified tests/local connections/diff check.
+- 2026-05-15T14:08:00+02:00 - Completed Stage 2: pushed local `master` to GitHub.
