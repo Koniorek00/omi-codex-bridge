@@ -43,7 +43,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 
 ## Current Verification
 
-- `python -m pytest -q` passes: 37 tests.
+- `python -m pytest -q` passes: 38 tests.
 - Live local bridge answers `/health/quick`.
 - Live local bridge answers protected `/api/known-uids`.
 - Current Cloudflare public URL answers `/health/quick`.

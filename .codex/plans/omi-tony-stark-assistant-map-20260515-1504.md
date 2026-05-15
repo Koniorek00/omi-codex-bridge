@@ -155,7 +155,7 @@ First make every existing working path restart-safe and measurable. Then add dur
 - [x] Confirm Obsidian notes read back.
 
 Latest evidence:
-- Bridge tests: 37 passing.
+- Bridge tests: 38 passing.
 - Omi v2 MCP tests: 14 passing.
 - Omi v2 desktop agent tests: 74 passing; build passes.
 - Claude proxy: returns `OK`.
@@ -176,4 +176,5 @@ Not complete: blocked by missing Omi MCP API key, phone lock for Omi app setting
 - 2026-05-15T16:05:00+02:00 - Hardened trusted autorun setup script, added trusted flags to known UID API, and added known UID dashboard panel.
 - 2026-05-15T16:15:00+02:00 - Repaired Polish trigger parsing for real diacritics and added regression assertions.
 - 2026-05-15T16:20:00+02:00 - Added UID capture for day-summary webhooks and regression coverage.
+- 2026-05-15T16:25:00+02:00 - Made reset clear known UID sightings and added regression coverage.
 - 2026-05-15T16:00:00+02:00 - Verified Windows startup entries for Aria, Omi bridge watchdog, and Android keepalive; process-hygiene audit found no safe close candidates.

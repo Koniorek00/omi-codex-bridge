@@ -70,6 +70,7 @@ class BridgeStorage:
         with self._lock:
             self._connection.execute("DELETE FROM events")
             self._connection.execute("DELETE FROM jobs")
+            self._connection.execute("DELETE FROM uid_sightings")
             self._connection.commit()
 
     def create_job(

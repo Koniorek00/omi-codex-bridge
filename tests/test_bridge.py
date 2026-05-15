@@ -361,6 +361,19 @@ def test_known_uids_marks_trusted_uids(tmp_path: Path) -> None:
     assert response["known_uids"][0]["trusted"] is True
 
 
+def test_reset_clears_known_uids(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    client.post(
+        "/omi/test-token/tools/list_codex_jobs",
+        json={"uid": "real-omi-user", "app_id": "omi_codex_bridge", "tool_name": "list_codex_jobs", "limit": 5},
+    )
+    assert client.get("/omi/test-token/api/known-uids").json()["known_uids"]
+
+    client.delete("/omi/test-token/api/reset")
+
+    assert client.get("/omi/test-token/api/known-uids").json()["known_uids"] == []
+
+
 def test_phone_status_updates_are_delivered_without_expanding_notifications(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
     client = make_client(tmp_path, phone_status_updates=True)

@@ -28,3 +28,4 @@
 - Hardened trusted autorun setup: UID add/remove validation, conflict guard, durable file docs, dashboard known-UID panel, and trusted UID flags in `/api/known-uids`.
 - Repaired Polish trigger parsing so real Omi phrases with normal diacritics work, while keeping compatibility with older mojibake examples.
 - Added UID capture for Omi day-summary webhooks so the first real phone signal is not missed.
+- Made reset clear known UID sightings as well as jobs/events; bridge tests now pass 38 tests.
