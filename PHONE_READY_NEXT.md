@@ -1,11 +1,11 @@
 # Phone Ready Next
 
-When ADB changes from `unauthorized` to `device`:
+Phone is authorized now. Keep normal operation in quiet mode:
 
 1. Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\wait_for_android.ps1 -OpenOmi -StartScrcpy
+powershell -ExecutionPolicy Bypass -File .\scripts\doctor.ps1
 ```
 
 2. In Omi, create or edit the Codex bridge integration.
@@ -29,7 +29,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\copy_setup_url.ps1 -Name mani
 5. Test phrase:
 
 ```text
-Hey Omi Codex queue a tiny smoke test task
+Powiedz Codexowi zeby pokazal na telefonie: test z Omi
 ```
 
 6. Verify:
@@ -39,3 +39,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\doctor.ps1
 ```
 
 Keep autorun off unless the user explicitly changes that safety decision.
+
+Auto-start is already installed through the Startup shortcut fallback:
+
+```text
+C:\Users\wikto\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Omi Codex Bridge Watchdog.lnk
+```
+
+The hidden watcher runs:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\watch_stack.ps1 -Port 8766 -EveryMinutes 15
+```
+
+Visible phone control is opt-in only:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\wait_for_android.ps1 -OpenOmi -StartScrcpy
+```

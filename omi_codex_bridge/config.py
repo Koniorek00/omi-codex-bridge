@@ -29,6 +29,10 @@ class BridgeConfig:
     omi_chat_messages_enabled: bool = True
     omi_chat_messages_target: str = "app"
     omi_chat_messages_notify: bool = False
+    phone_status_updates: bool = False
+    android_serial: str | None = None
+    android_expand_notifications: bool = False
+    android_sleep_after_notify: bool = True
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
@@ -65,6 +69,10 @@ class BridgeConfig:
             omi_chat_messages_enabled=os.getenv("OMI_CHAT_MESSAGES_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"},
             omi_chat_messages_target=chat_target,
             omi_chat_messages_notify=os.getenv("OMI_CHAT_MESSAGES_NOTIFY", "0").strip().lower() in {"1", "true", "yes", "on"},
+            phone_status_updates=os.getenv("OMI_CODEX_PHONE_STATUS_UPDATES", "0").strip().lower() in {"1", "true", "yes", "on"},
+            android_serial=os.getenv("OMI_ANDROID_SERIAL", "").strip() or None,
+            android_expand_notifications=os.getenv("OMI_ANDROID_EXPAND_NOTIFICATIONS", "0").strip().lower() in {"1", "true", "yes", "on"},
+            android_sleep_after_notify=os.getenv("OMI_ANDROID_SLEEP_AFTER_NOTIFY", "1").strip().lower() in {"1", "true", "yes", "on"},
         )
 
     @property

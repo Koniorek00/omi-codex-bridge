@@ -36,6 +36,10 @@ class CheckBridgeStatusRequest(ToolBaseRequest):
     pass
 
 
+class CheckPhoneStatusRequest(ToolBaseRequest):
+    pass
+
+
 class StartCodexTaskRequest(ToolBaseRequest):
     prompt: str
     workspace: str | None = None
@@ -50,7 +54,7 @@ class OpenDesktopFileRequest(ToolBaseRequest):
 class ShowOnAndroidRequest(ToolBaseRequest):
     title: str = "Codex"
     message: str
-    expand_notifications: bool = True
+    expand_notifications: bool = False
 
 
 class QuickCodexTaskRequest(ToolBaseRequest):

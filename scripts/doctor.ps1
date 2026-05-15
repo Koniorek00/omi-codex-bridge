@@ -12,6 +12,29 @@ function Show-Check($Name, $Ok, $Detail) {
   Write-Host "[$state] $Name - $Detail"
 }
 
+function Invoke-PublicJson($Url) {
+  try {
+    return Invoke-RestMethod -Uri $Url -TimeoutSec 20
+  } catch {
+    try {
+      $uri = [Uri]$Url
+      $ip = Resolve-DnsName $uri.Host -Server 1.1.1.1 -Type A -ErrorAction Stop |
+        Select-Object -First 1 -ExpandProperty IPAddress
+      if (-not $ip) {
+        throw "public DNS did not return an A record"
+      }
+      $resolveArg = "$($uri.Host)`:443`:$ip"
+      $raw = & curl.exe --resolve $resolveArg $Url --max-time 25 --silent --show-error
+      if ($LASTEXITCODE -ne 0 -or -not $raw) {
+        throw "curl fallback failed"
+      }
+      return ($raw | ConvertFrom-Json)
+    } catch {
+      throw
+    }
+  }
+}
+
 $commands = "python", "codex", "tailscale", "adb"
 foreach ($command in $commands) {
   $cmd = Get-Command $command -ErrorAction SilentlyContinue
@@ -20,10 +43,14 @@ foreach ($command in $commands) {
 
 $health = $null
 try {
-  $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 5
+  $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 20
   Show-Check "bridge health" ($health.status -eq "healthy") ($health | ConvertTo-Json -Compress)
   if ($health.obsidian) {
     Show-Check "obsidian export" ($health.obsidian.active -and $health.obsidian.root_exists) ($health.obsidian | ConvertTo-Json -Compress)
+  }
+  if ($health.android) {
+    $androidDetail = $health.android | ConvertTo-Json -Compress
+    Show-Check "android quiet channel" ($health.android.available -and $health.android.quiet_ready) $androidDetail
   }
 } catch {
   Show-Check "bridge health" $false "not answering on http://127.0.0.1:$Port/health"
@@ -66,16 +93,31 @@ if (Test-Path $quickTunnelFile) {
     $token = (Get-Content -Raw -LiteralPath $tokenPath).Trim()
   }
   try {
-    $quickHealth = Invoke-RestMethod -Uri "$quickTunnelUrl/health" -TimeoutSec 10
+    $quickHealth = Invoke-PublicJson "$quickTunnelUrl/health"
     Show-Check "cloudflare quick tunnel" ($quickHealth.status -eq "healthy") "public HTTPS health is reachable"
   } catch {
     Show-Check "cloudflare quick tunnel" $false "URL exists but health check failed: $quickTunnelUrl"
   }
   if ($token) {
     try {
-      $manifest = Invoke-RestMethod -Uri "$quickTunnelUrl/omi/$token/.well-known/omi-tools.json" -TimeoutSec 10
+      $manifest = Invoke-PublicJson "$quickTunnelUrl/omi/$token/.well-known/omi-tools.json"
       $toolNames = @($manifest.tools | ForEach-Object { $_.name })
-      $expectedTools = @("ask_codex", "open_desktop_file", "show_on_android", "quick_codex_task", "check_bridge_status")
+      $expectedTools = @(
+        "ask_codex",
+        "start_codex_task",
+        "open_desktop_file",
+        "show_on_android",
+        "check_phone_status",
+        "quick_codex_task",
+        "run_codex_job",
+        "run_next_codex_job",
+        "list_codex_jobs",
+        "get_codex_job",
+        "get_codex_job_output",
+        "cancel_codex_job",
+        "retry_codex_job",
+        "check_bridge_status"
+      )
       $missingTools = @($expectedTools | Where-Object { $toolNames -notcontains $_ })
       $chatMessagesOk = $manifest.chat_messages -and ($manifest.chat_messages.enabled -eq $true)
       Show-Check "omi chat manifest" (($missingTools.Count -eq 0) -and $chatMessagesOk) ("tools: " + ($toolNames -join ", ") + "; chat_messages: " + ($manifest.chat_messages | ConvertTo-Json -Compress))
@@ -83,7 +125,7 @@ if (Test-Path $quickTunnelFile) {
       Show-Check "omi chat manifest" $false "manifest failed through public URL"
     }
     try {
-      $setup = Invoke-RestMethod -Uri "$quickTunnelUrl/omi/$token/setup-completed" -TimeoutSec 10
+      $setup = Invoke-PublicJson "$quickTunnelUrl/omi/$token/setup-completed"
       Show-Check "omi setup endpoint" ($setup.is_setup_completed -eq $true) ($setup | ConvertTo-Json -Compress)
     } catch {
       Show-Check "omi setup endpoint" $false "setup-completed failed through public URL"

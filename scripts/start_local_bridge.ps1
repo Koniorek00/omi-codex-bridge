@@ -6,6 +6,8 @@ param(
   [string]$ObsidianVault = "F:\programy\Obsidian\Codex Vault\Codex",
   [string]$ObsidianRoot = "Codex/Omi Codex Bridge",
   [switch]$DisableObsidian,
+  [switch]$DisablePhoneStatus,
+  [switch]$ExpandAndroidNotifications,
   [string]$TokenFile = "runtime\current-token.txt"
 )
 
@@ -39,6 +41,10 @@ $env:OMI_CODEX_RUNTIME_DIR = $runtimeDir
 $env:OMI_OBSIDIAN_ENABLED = if ($DisableObsidian) { "0" } else { "1" }
 $env:OMI_OBSIDIAN_VAULT_PATH = $ObsidianVault
 $env:OMI_OBSIDIAN_ROOT = $ObsidianRoot
+$env:OMI_CODEX_PHONE_STATUS_UPDATES = if ($DisablePhoneStatus) { "0" } else { "1" }
+$env:OMI_ANDROID_EXPAND_NOTIFICATIONS = if ($ExpandAndroidNotifications) { "1" } else { "0" }
+$env:OMI_ANDROID_SLEEP_AFTER_NOTIFY = "1"
+$env:OMI_NOTIFICATION_MODE = if ($env:OMI_NOTIFICATION_MODE) { $env:OMI_NOTIFICATION_MODE } else { "auto" }
 
 if ($Background) {
   $logDir = Join-Path $runtimeDir "logs"
@@ -60,6 +66,12 @@ if ($Background) {
   )
   if ($DisableObsidian) {
     $argList += "-DisableObsidian"
+  }
+  if ($DisablePhoneStatus) {
+    $argList += "-DisablePhoneStatus"
+  }
+  if ($ExpandAndroidNotifications) {
+    $argList += "-ExpandAndroidNotifications"
   }
   Start-Process -FilePath "powershell.exe" -ArgumentList $argList -WorkingDirectory $root -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr | Out-Null
   Write-Host "Omi Codex Bridge starting in background on http://127.0.0.1:$Port"

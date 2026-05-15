@@ -13,4 +13,4 @@ Start-Sleep -Seconds 2
 & "$PSScriptRoot\doctor.ps1" -Port $Port
 
 Write-Host "Ready. Private Omi setup file: $root\runtime\omi-setup-urls.private.txt"
-Write-Host "Phone watcher: powershell -ExecutionPolicy Bypass -File `"$PSScriptRoot\wait_for_android.ps1`" -OpenOmi -StartScrcpy"
+Write-Host "Phone mode: quiet status notifications are enabled; screen-control is opt-in only."

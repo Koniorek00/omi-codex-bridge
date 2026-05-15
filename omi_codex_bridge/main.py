@@ -5,12 +5,9 @@ import shutil
 import threading
 import os
 import re
-import shlex
-import subprocess
 from pathlib import Path
 from typing import Any
 
-import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
@@ -19,6 +16,7 @@ from .dashboard import render_dashboard
 from .models import (
     CancelCodexJobRequest,
     CheckBridgeStatusRequest,
+    CheckPhoneStatusRequest,
     GetCodexJobOutputRequest,
     GetCodexJobRequest,
     ListCodexJobsRequest,
@@ -32,6 +30,7 @@ from .models import (
     TranscriptSegment,
 )
 from .parser import dedupe_key, extract_codex_prompt
+from .phone import PhoneNotificationError, android_status, post_phone_notification
 from .obsidian import ObsidianExporter
 from .runner import CodexRunner, MockRunner, Runner
 from .storage import BridgeStorage
@@ -40,6 +39,12 @@ from .storage import BridgeStorage
 DESKTOP_OPEN_RE = re.compile(
     r"\b(?:open|show|otw[oó]rz|otworz|otworzy[lł]|poka[zż])\b.*\b(?:desktop|pulpit|pulpitu)\b|"
     r"\b(?:desktop|pulpit|pulpitu)\b.*\b(?:file|plik|pliku)\b",
+    flags=re.IGNORECASE,
+)
+
+ANDROID_SHOW_RE = re.compile(
+    r"\b(?:show|send|display|push|pokaz|pokazal|wyslij|wyslac)\b.*\b(?:phone|android|telefon|telefonie|telefonu)\b|"
+    r"\b(?:phone|android|telefon|telefonie|telefonu)\b.*\b(?:show|send|display|push|pokaz|wyslij)\b",
     flags=re.IGNORECASE,
 )
 
@@ -104,7 +109,11 @@ def create_app(
                 "chat_messages_enabled": config.omi_chat_messages_enabled,
                 "chat_messages_target": config.omi_chat_messages_target,
                 "chat_messages_notify": config.omi_chat_messages_notify,
+                "phone_status_updates": config.phone_status_updates,
+                "android_expand_notifications": config.android_expand_notifications,
+                "android_sleep_after_notify": config.android_sleep_after_notify,
             },
+            "android": android_status(config, include_power=True, include_guards=True),
             "tailscale_expected": "Use Tailscale Funnel for Omi cloud webhooks; Serve is tailnet-only.",
         }
 
@@ -192,6 +201,12 @@ def create_app(
             prompt = prompt[:1197] + "..."
         return f"{job['id']} is {job['status']} from {job['source']}. Workspace: {job['workspace']}. Prompt: {prompt}"
 
+    def compact_prompt(prompt: str, limit: int = 160) -> str:
+        text = " ".join(prompt.split())
+        if len(text) > limit:
+            return text[: limit - 3] + "..."
+        return text
+
     def read_job_output(job: dict[str, Any], max_chars: int = 4000) -> tuple[str, str | None]:
         limit = max(200, min(max_chars, 20000))
         for key in ("last_message_path", "output_path"):
@@ -218,6 +233,7 @@ def create_app(
         if job["status"] == "succeeded":
             return {"result": f"Codex job {job['id']} already succeeded. Use retry_codex_job if you want another run."}
         background.add_task(maybe_run, job["id"])
+        notify_phone_status(job["uid"], "Codex", f"{job['id']} started: {compact_prompt(job['prompt'])}", job["id"])
         return {"result": f"Codex job {job['id']} started."}
 
     def memory_candidate_texts(memory: dict[str, Any]) -> list[str]:
@@ -259,6 +275,23 @@ def create_app(
 
     def is_desktop_open_request(prompt: str) -> bool:
         return bool(DESKTOP_OPEN_RE.search(prompt))
+
+    def extract_android_show_message(prompt: str) -> str | None:
+        normalized = " ".join(prompt.split())
+        if not ANDROID_SHOW_RE.search(normalized):
+            return None
+        if ":" in normalized:
+            candidate = normalized.split(":", 1)[1]
+        else:
+            candidate = re.sub(
+                r"^.*?\b(?:phone|android|telefon|telefonie|telefonu)\b",
+                "",
+                normalized,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        candidate = candidate.strip(" .,:;-")
+        return candidate or "Codex phone connection test."
 
     def choose_desktop_file(query: str | None, create_demo_if_needed: bool = True) -> Path:
         desktop = desktop_path()
@@ -306,87 +339,28 @@ def create_app(
         open_local_file(path)
         return {"result": f"Opened desktop file on this PC: {path.name}", "path": str(path)}
 
-    def adb_prefix() -> list[str]:
-        adb = shutil.which("adb")
-        if not adb:
-            raise HTTPException(status_code=503, detail="adb was not found on PATH.")
-        serial = os.getenv("OMI_ANDROID_SERIAL", "").strip()
-        if serial:
-            return [adb, "-s", serial]
-        devices = subprocess.run([adb, "devices", "-l"], text=True, capture_output=True, timeout=10)
-        lines = [line for line in devices.stdout.splitlines() if "\tdevice" in line]
-        if not lines:
-            raise HTTPException(status_code=503, detail="No authorized Android device found.")
-        usb = next((line for line in lines if not line.split()[0].count(".")), lines[0])
-        return [adb, "-s", usb.split()[0]]
-
-    def send_omi_notification(uid: str, message: str) -> dict[str, str]:
-        if not config.omi_app_id or not config.omi_app_secret:
-            raise HTTPException(status_code=503, detail="Omi app notification credentials are not configured.")
-        url = f"{config.omi_api_base_url}/v2/integrations/{config.omi_app_id}/notification"
+    def notify_phone_status(uid: str, title: str, message: str, job_id: str | None = None) -> dict[str, str] | None:
+        if not config.phone_status_updates:
+            return None
         try:
-            with httpx.Client(timeout=10) as client:
-                response = client.post(
-                    url,
-                    params={"uid": uid, "message": message},
-                    headers={"Authorization": f"Bearer {config.omi_app_secret}", "Content-Type": "application/json"},
-                )
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail="Omi notification API is temporarily unreachable.") from exc
-        if response.status_code >= 400:
-            raise HTTPException(status_code=response.status_code, detail="Omi notification API rejected the request.")
-        return {"result": "Sent through Omi notification API.", "delivery": "omi_api"}
+            result = post_phone_notification(
+                config,
+                uid,
+                title,
+                message,
+                expand_notifications=config.android_expand_notifications,
+            )
+        except PhoneNotificationError as exc:
+            storage.add_event(job_id, "phone.notify_failed", str(exc))
+            return None
+        storage.add_event(job_id, "phone.notified", f"Phone status delivered through {result.get('delivery', 'unknown')}.")
+        return result
 
-    def show_on_android(uid: str, title: str, message: str, expand_notifications: bool = True) -> dict[str, str]:
-        clean_title = " ".join((title or "Codex").split())[:80]
-        clean_message = " ".join(message.split())[:2000]
-        if len(clean_message) < 1:
-            raise HTTPException(status_code=400, detail="Message is empty.")
-        if os.getenv("OMI_ANDROID_DRY_RUN", "").strip().lower() in {"1", "true", "yes", "on"}:
-            return {"result": f"Shown on Android: {clean_title}", "message": clean_message, "delivery": "dry_run"}
-        omi_message = f"{clean_title}: {clean_message}" if clean_title else clean_message
-        if config.omi_notification_mode in {"auto", "omi"} and config.omi_app_id and config.omi_app_secret:
-            try:
-                sent = send_omi_notification(uid, omi_message)
-                return {"result": f"Shown through Omi: {clean_title}", "message": clean_message, **sent}
-            except HTTPException as exc:
-                if config.omi_notification_mode == "omi":
-                    raise
-                omi_warning = str(exc.detail)
-            else:
-                omi_warning = ""
-        else:
-            omi_warning = ""
-        if config.omi_notification_mode == "omi":
-            raise HTTPException(status_code=503, detail="Omi notification mode is enabled, but OMI_APP_ID/OMI_APP_SECRET are missing.")
-        adb = adb_prefix()
-        tag = "omi-codex"
-        notification_command = " ".join(
-            [
-                "cmd",
-                "notification",
-                "post",
-                "-S",
-                "bigtext",
-                "-t",
-                shlex.quote(clean_title),
-                shlex.quote(tag),
-                shlex.quote(clean_message),
-            ]
-        )
-        subprocess.run(
-            [*adb, "shell", notification_command],
-            text=True,
-            capture_output=True,
-            timeout=15,
-            check=True,
-        )
-        if expand_notifications:
-            subprocess.run([*adb, "shell", "cmd", "statusbar", "expand-notifications"], text=True, capture_output=True, timeout=10)
-        response = {"result": f"Shown on Android: {clean_title}", "message": clean_message, "delivery": "adb"}
-        if omi_warning:
-            response["omi_warning"] = omi_warning
-        return response
+    def show_on_android(uid: str, title: str, message: str, expand_notifications: bool = False) -> dict[str, str]:
+        try:
+            return post_phone_notification(config, uid, title, message, expand_notifications=expand_notifications)
+        except PhoneNotificationError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     def quick_prompt(task_type: str, details: str) -> str:
         normalized_type = re.sub(r"[^a-zA-Z0-9_-]+", "", task_type.strip().lower()) or "create"
@@ -529,12 +503,27 @@ def create_app(
                         "properties": {
                             "title": {"type": "string", "description": "Notification title. Defaults to Codex."},
                             "message": {"type": "string", "description": "Text to show on the Android phone."},
-                            "expand_notifications": {"type": "boolean", "description": "Whether to open the notification shade after posting."},
+                            "expand_notifications": {
+                                "type": "boolean",
+                                "description": "Whether to open the notification shade after posting. Leave false for sleep-friendly delivery.",
+                            },
                         },
                         "required": ["message"],
                     },
                     "auth_required": False,
-                    "status_message": "Showing this on Android...",
+                    "status_message": "Sending this to the phone...",
+                },
+                {
+                    "name": "check_phone_status",
+                    "description": (
+                        "Check whether the connected Android phone is reachable without waking the display. Use this when the user asks if phone, Omi, "
+                        "ADB, Tailscale, or quiet mode is working."
+                    ),
+                    "endpoint": f"{base}/tools/check_phone_status",
+                    "method": "POST",
+                    "parameters": {"properties": {}, "required": []},
+                    "auth_required": False,
+                    "status_message": "Checking phone quiet connection...",
                 },
                 {
                     "name": "quick_codex_task",
@@ -685,6 +674,9 @@ def create_app(
         status = "queued" if inserted else "already queued"
         run_hint = " It will run after approval from the bridge dashboard." if not config.autorun else ""
         response = {"result": f"Sent to Codex on the PC as {job['id']}: {status}.{run_hint}"}
+        phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {compact_prompt(payload.prompt)}", job["id"])
+        if phone_status:
+            response["phone_status"] = phone_status["delivery"]
         if note_path:
             response["obsidian_note"] = note_path
         return response
@@ -698,6 +690,28 @@ def create_app(
     async def show_on_android_tool(token: str, payload: ShowOnAndroidRequest) -> dict[str, str]:
         check_token(token)
         return show_on_android(payload.uid, payload.title, payload.message, payload.expand_notifications)
+
+    @app.post("/omi/{token}/tools/check_phone_status")
+    async def check_phone_status_tool(token: str, payload: CheckPhoneStatusRequest) -> dict[str, str]:
+        check_token(token)
+        phone = android_status(config, include_power=True, include_guards=True)
+        if not phone["adb_found"]:
+            return {"result": "Phone channel blocked: adb is not on PATH."}
+        if not phone["available"]:
+            unauthorized = len(phone.get("unauthorized", []))
+            suffix = " Unauthorized phone is visible; unlock it and accept ADB." if unauthorized else ""
+            return {"result": f"Phone channel blocked: no authorized Android device found.{suffix}"}
+        power = phone.get("power") or {}
+        guards = phone.get("wake_guards") or {}
+        quiet = "yes" if phone.get("quiet_ready") else "no"
+        wakefulness = power.get("wakefulness", "unknown")
+        guard_text = "disabled" if guards.get("wake_guards_disabled", True) else "active"
+        return {
+            "result": (
+                f"Phone channel ready on {phone['target']} ({phone['transport']}). "
+                f"Quiet mode: {quiet}. Screen state: {wakefulness}. Wake guards: {guard_text}."
+            )
+        }
 
     @app.post("/omi/{token}/tools/quick_codex_task")
     async def quick_codex_task(token: str, payload: QuickCodexTaskRequest, background: BackgroundTasks) -> dict[str, str]:
@@ -713,6 +727,9 @@ def create_app(
             background.add_task(maybe_run, job["id"])
         status = "queued" if inserted else "already queued"
         response = {"result": f"Quick Codex task {job['id']} {status}: {payload.task_type}"}
+        phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {payload.task_type} - {compact_prompt(payload.details)}", job["id"])
+        if phone_status:
+            response["phone_status"] = phone_status["delivery"]
         if note_path:
             response["obsidian_note"] = note_path
         return response
@@ -790,6 +807,9 @@ def create_app(
             background.add_task(maybe_run, job["id"])
         run_hint = " It will run after approval from the bridge dashboard." if not config.autorun else ""
         response = {"result": f"Retry queued as Codex job {job['id']}.{run_hint}"}
+        phone_status = notify_phone_status(job["uid"], "Codex", f"{job['id']} retry queued: {compact_prompt(job['prompt'])}", job["id"])
+        if phone_status:
+            response["phone_status"] = phone_status["delivery"]
         if note_path:
             response["obsidian_note"] = note_path
         return response
@@ -804,11 +824,15 @@ def create_app(
         obsidian_state = "on" if status["obsidian"]["active"] else "off"
         omi_notify = status["omi_notifications"]
         omi_notify_state = "api" if omi_notify["api_configured"] else "adb fallback"
+        android = status["android"]
+        phone_state = "ready" if android["available"] else "not ready"
+        quiet_state = "quiet" if android.get("quiet_ready") else "not quiet"
         return {
             "result": (
                 f"Omi Codex Bridge is {status['status']}. Codex CLI: {codex_state}. "
                 f"Runner: {status['runner_mode']}. Autorun: {status['autorun']}. "
-                f"Obsidian export: {obsidian_state}. Phone notify: {omi_notify_state}. Queue counts: {counts}.{token_warning}"
+                f"Obsidian export: {obsidian_state}. Phone notify: {omi_notify_state}. "
+                f"Android: {phone_state}, {quiet_state}. Queue counts: {counts}.{token_warning}"
             )
         }
 
@@ -838,6 +862,16 @@ def create_app(
                 "message": opened["result"],
                 "action": "open_desktop_file",
                 "path": opened["path"],
+            }
+        android_message = extract_android_show_message(prompt)
+        if android_message:
+            shown = show_on_android(uid, "Codex", android_message, expand_notifications=False)
+            return {
+                "session_id": active_session_id,
+                "accepted_segments": len(segments),
+                "message": shown["result"],
+                "action": "show_on_android",
+                "delivery": shown["delivery"],
             }
 
         workspace = str(config.default_workspace)
@@ -871,6 +905,9 @@ def create_app(
             "job_id": job["id"],
             "status": job["status"],
         }
+        phone_status = notify_phone_status(uid, "Codex", f"{job['id']} {action}: {compact_prompt(prompt)}", job["id"])
+        if phone_status:
+            response["phone_status"] = phone_status["delivery"]
         if realtime_note_path:
             response["obsidian_note"] = realtime_note_path
         if job_note_path:
@@ -935,6 +972,9 @@ def create_app(
             "job_id": job["id"],
             "status": job["status"],
         }
+        phone_status = notify_phone_status(uid, "Codex", f"{job['id']} {action} from memory: {compact_prompt(prompt)}", job["id"])
+        if phone_status:
+            response["phone_status"] = phone_status["delivery"]
         if memory_note_path:
             response["obsidian_note"] = memory_note_path
         if job_note_path:

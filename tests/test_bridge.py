@@ -13,7 +13,7 @@ from omi_codex_bridge.runner import CodexRunner
 from omi_codex_bridge.storage import BridgeStorage
 
 
-def make_config(tmp_path: Path, autorun: bool = False) -> BridgeConfig:
+def make_config(tmp_path: Path, autorun: bool = False, phone_status_updates: bool = False) -> BridgeConfig:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     return BridgeConfig(
@@ -25,11 +25,12 @@ def make_config(tmp_path: Path, autorun: bool = False) -> BridgeConfig:
         autorun=autorun,
         runner_mode="mock",
         codex_timeout_seconds=30,
+        phone_status_updates=phone_status_updates,
     )
 
 
-def make_client(tmp_path: Path, autorun: bool = False) -> TestClient:
-    config = make_config(tmp_path, autorun=autorun)
+def make_client(tmp_path: Path, autorun: bool = False, phone_status_updates: bool = False) -> TestClient:
+    config = make_config(tmp_path, autorun=autorun, phone_status_updates=phone_status_updates)
     storage = BridgeStorage(":memory:")
     runner = MockRunner(storage, config)
     return TestClient(create_app(config=config, storage=storage, runner=runner))
@@ -148,6 +149,7 @@ def test_manifest_exposes_full_job_control_tools(tmp_path: Path) -> None:
         "start_codex_task",
         "open_desktop_file",
         "show_on_android",
+        "check_phone_status",
         "quick_codex_task",
         "run_codex_job",
         "run_next_codex_job",
@@ -186,6 +188,20 @@ def test_realtime_desktop_open_runs_immediately(tmp_path: Path, monkeypatch) -> 
     assert client.get("/omi/test-token/api/jobs").json()["jobs"] == []
 
 
+def test_realtime_show_android_runs_immediately(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/webhooks/realtime",
+        params={"uid": "u1"},
+        json={"transcript": "Powiedz Codexowi zeby pokazal na telefonie: test z komputera"},
+    ).json()
+    assert response["action"] == "show_on_android"
+    assert response["delivery"] == "dry_run"
+    assert response["message"] == "Shown on Android: Codex"
+    assert client.get("/omi/test-token/api/jobs").json()["jobs"] == []
+
+
 def test_show_on_android_tool_dry_run(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
     client = make_client(tmp_path)
@@ -202,6 +218,45 @@ def test_show_on_android_tool_dry_run(tmp_path: Path, monkeypatch) -> None:
     assert response["result"] == "Shown on Android: Codex"
     assert response["message"] == "Hello phone"
     assert response["delivery"] == "dry_run"
+
+
+def test_check_phone_status_tool_reports_quiet_ready(tmp_path: Path, monkeypatch) -> None:
+    def fake_android_status(config, include_power=True, include_guards=True):
+        return {
+            "adb_found": True,
+            "available": True,
+            "target": "usb-1",
+            "transport": "usb",
+            "quiet_ready": True,
+            "power": {"wakefulness": "Dozing"},
+            "wake_guards": {"wake_guards_disabled": True},
+        }
+
+    monkeypatch.setattr("omi_codex_bridge.main.android_status", fake_android_status)
+    client = make_client(tmp_path)
+    response = client.post(
+        "/omi/test-token/tools/check_phone_status",
+        json={"uid": "u1", "app_id": "omi_codex_bridge", "tool_name": "check_phone_status"},
+    ).json()
+    assert "Phone channel ready on usb-1" in response["result"]
+    assert "Quiet mode: yes" in response["result"]
+
+
+def test_phone_status_updates_are_delivered_without_expanding_notifications(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OMI_ANDROID_DRY_RUN", "1")
+    client = make_client(tmp_path, phone_status_updates=True)
+    response = client.post(
+        "/omi/test-token/tools/start_codex_task",
+        json={
+            "uid": "u1",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "start_codex_task",
+            "prompt": "Create a README section for phone status",
+        },
+    ).json()
+    assert response["phone_status"] == "dry_run"
+    events = client.get("/omi/test-token/api/events").json()["events"]
+    assert any(event["kind"] == "phone.notified" for event in events)
 
 
 def test_quick_codex_task_queues_template(tmp_path: Path) -> None:

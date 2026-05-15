@@ -8,6 +8,7 @@ from typing import Protocol
 from .config import BridgeConfig
 from .models import utc_now_iso
 from .obsidian import ObsidianExporter
+from .phone import PhoneNotificationError, post_phone_notification
 from .storage import BridgeStorage
 
 
@@ -21,6 +22,22 @@ class CodexRunner:
         self.storage = storage
         self.config = config
         self.obsidian = ObsidianExporter(config)
+
+    def _notify_job_status(self, job: dict, message: str) -> None:
+        if not self.config.phone_status_updates:
+            return
+        try:
+            result = post_phone_notification(
+                self.config,
+                job["uid"],
+                "Codex",
+                message,
+                expand_notifications=self.config.android_expand_notifications,
+            )
+        except PhoneNotificationError as exc:
+            self.storage.add_event(job["id"], "phone.notify_failed", str(exc))
+            return
+        self.storage.add_event(job["id"], "phone.notified", f"Phone status delivered through {result.get('delivery', 'unknown')}.")
 
     def build_prompt(self, job: dict) -> str:
         memory_index = self.config.runtime_dir / "OMI_AGENT_MAP.md"
@@ -80,6 +97,7 @@ class CodexRunner:
         )
         self.storage.add_event(job_id, "job.running", "Codex CLI started.")
         self._export_job(running_job)
+        self._notify_job_status(running_job, f"{job_id} running.")
 
         try:
             process = subprocess.run(
@@ -101,11 +119,13 @@ class CodexRunner:
             )
             self.storage.add_event(job_id, f"job.{status}", f"Codex finished with exit code {process.returncode}.")
             self._export_job(updated)
+            self._notify_job_status(updated, f"{job_id} {status}. Exit code {process.returncode}.")
             return updated
         except Exception as exc:
             updated = self.storage.update_job(job_id, status="failed", finished_at=utc_now_iso(), error=str(exc))
             self.storage.add_event(job_id, "job.failed", str(exc))
             self._export_job(updated)
+            self._notify_job_status(updated, f"{job_id} failed: {str(exc)[:180]}")
             return updated
 
     def _export_job(self, job: dict) -> None:
@@ -121,6 +141,22 @@ class MockRunner:
         self.config = config
         self.obsidian = ObsidianExporter(config)
 
+    def _notify_job_status(self, job: dict, message: str) -> None:
+        if not self.config.phone_status_updates:
+            return
+        try:
+            result = post_phone_notification(
+                self.config,
+                job["uid"],
+                "Codex",
+                message,
+                expand_notifications=self.config.android_expand_notifications,
+            )
+        except PhoneNotificationError as exc:
+            self.storage.add_event(job["id"], "phone.notify_failed", str(exc))
+            return
+        self.storage.add_event(job["id"], "phone.notified", f"Phone status delivered through {result.get('delivery', 'unknown')}.")
+
     def run(self, job_id: str) -> dict:
         job = self.storage.get_job(job_id)
         if not job:
@@ -130,6 +166,7 @@ class MockRunner:
         output_path = job_dir / "mock-codex-output.txt"
         output_path.write_text(f"Mock Codex completed request:\n{job['prompt']}\n", encoding="utf-8")
         self.storage.add_event(job_id, "job.running", "Mock runner started.")
+        self._notify_job_status(job, f"{job_id} running.")
         updated = self.storage.update_job(
             job_id,
             status="succeeded",
@@ -140,6 +177,7 @@ class MockRunner:
             command_json=["mock-codex"],
         )
         self.storage.add_event(job_id, "job.succeeded", "Mock runner completed.")
+        self._notify_job_status(updated, f"{job_id} succeeded.")
         try:
             self.obsidian.export_job(updated)
         except Exception as exc:

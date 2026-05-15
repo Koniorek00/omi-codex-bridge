@@ -19,6 +19,9 @@ $env:OMI_OBSIDIAN_ENABLED="1"
 $env:OMI_OBSIDIAN_VAULT_PATH="F:\programy\Obsidian\Codex Vault\Codex"
 $env:OMI_OBSIDIAN_ROOT="Codex/Omi Codex Bridge"
 $env:OMI_NOTIFICATION_MODE="auto" # auto, adb, or omi
+$env:OMI_CODEX_PHONE_STATUS_UPDATES="1"
+$env:OMI_ANDROID_EXPAND_NOTIFICATIONS="0" # keep status delivery sleep-friendly
+$env:OMI_ANDROID_SLEEP_AFTER_NOTIFY="1"
 # Optional official Omi push notifications:
 # $env:OMI_APP_ID="your_omi_app_id"
 # $env:OMI_APP_SECRET="your_omi_app_secret"
@@ -77,6 +80,14 @@ To prepare everything in one pass:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare_all.ps1
 ```
+
+To keep the local bridge and public tunnel alive after PC login, install the startup/watchdog helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_startup_task.ps1
+```
+
+If Windows blocks Scheduled Tasks, the installer falls back to a Startup-folder shortcut that runs `watch_stack.ps1` every 15 minutes. The watcher keeps the phone in quiet mode and does not install display wake guards.
 
 ## Omi setup
 
@@ -149,10 +160,18 @@ $env:OMI_OBSIDIAN_ROOT="Codex/Omi Codex Bridge"
 
 ## Phone and Omi notifications
 
-`show_on_android` sends a short message to the phone. Delivery order:
+`show_on_android` sends a short message to the phone without opening the notification shade by default. Delivery order:
 
 - If `OMI_APP_ID` and `OMI_APP_SECRET` are set, the bridge uses Omi's official notification API.
 - Otherwise it falls back to the connected Android phone over ADB.
+
+The local startup script enables `OMI_CODEX_PHONE_STATUS_UPDATES=1`, so queued/running/completed Codex jobs can send short status updates back to the phone. It also keeps `OMI_ANDROID_EXPAND_NOTIFICATIONS=0` and `OMI_ANDROID_SLEEP_AFTER_NOTIFY=1`, so ADB fallback delivery does not intentionally keep the display awake.
+
+Use this chat tool to verify the quiet path:
+
+```text
+Check phone status
+```
 
 The manifest also exposes Omi `chat_messages` so Omi knows the app can send app-chat messages.
 
@@ -200,7 +219,8 @@ The manifest exposes these Omi chat tools:
 
 - `start_codex_task`: queue a task with an optional allowlisted workspace.
 - `open_desktop_file`: open a Desktop/Pulpit file on this Windows PC immediately. Vague requests open/create `omi-codex-open-test.txt`.
-- `show_on_android`: show a short title/message on the connected Android phone as a notification.
+- `show_on_android`: show a short title/message on the connected Android phone as a notification; notification shade expansion is opt-in.
+- `check_phone_status`: check ADB reachability, screen quiet mode, and wake-guard tasks without waking the phone.
 - `quick_codex_task`: queue common Codex work using presets: `build`, `create`, `fix`, `test`, `review`, `setup`, `android`, `obsidian`, `research`.
 - `run_codex_job`: start a queued or failed job by id.
 - `run_next_codex_job`: start the oldest pending job without needing an id.
