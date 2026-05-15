@@ -9,3 +9,4 @@
 - Prefer phone feedback through Android notification commands with `expand_notifications=false` and sleep-after-notify behavior enabled.
 - Use `/health/quick` for watchdog/tunnel liveness and keep full `/health` for deeper diagnostics because ADB and Windows task checks can be slow.
 - If environment variables are missing, the bridge should read `runtime/current-token.txt` instead of exposing the dev token.
+- Keep long ADB/status operations in worker threads so the bridge can still answer liveness checks and Omi tool calls while diagnostics are running.

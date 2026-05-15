@@ -13,3 +13,4 @@
 - Added runtime token-file recovery so a direct or watcher launch does not fall back to the dev token.
 - Added `/health/quick` and switched stack/public tunnel probes to it, avoiding false restarts when full Android health is slow.
 - Confirmed live bridge after restart is using the real token, phone status updates are on, Android remains quiet, and Cloudflare quick tunnel is reachable.
+- Moved full health, phone status, and Android notification calls off the FastAPI event loop; concurrent full-health plus quick-health smoke test returned quick health in under 1 second.
