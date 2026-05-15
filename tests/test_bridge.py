@@ -71,6 +71,7 @@ def test_trigger_parser_extracts_voice_prompt() -> None:
 def test_tokenized_routes_protect_jobs(tmp_path: Path) -> None:
     client = make_client(tmp_path)
     assert client.get("/health").json()["status"] == "healthy"
+    assert client.get("/health/quick").json()["status"] == "healthy"
     assert client.get("/omi/wrong-token/api/jobs").status_code == 404
     assert client.get("/omi/test-token/api/jobs").json() == {"jobs": []}
 

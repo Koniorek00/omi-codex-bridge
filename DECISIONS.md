@@ -7,3 +7,5 @@
 - Keep `autorun` disabled for now. Omi can create and manage jobs, but full public remote command execution should wait for a stronger trust/approval policy.
 - Treat the committed bridge hardening changes as the integration base for any future worktree-swarm builders.
 - Prefer phone feedback through Android notification commands with `expand_notifications=false` and sleep-after-notify behavior enabled.
+- Use `/health/quick` for watchdog/tunnel liveness and keep full `/health` for deeper diagnostics because ADB and Windows task checks can be slow.
+- If environment variables are missing, the bridge should read `runtime/current-token.txt` instead of exposing the dev token.

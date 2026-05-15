@@ -34,6 +34,7 @@ if ($token.Length -lt 32) {
 }
 
 $env:OMI_CODEX_BRIDGE_TOKEN = $token
+$env:OMI_CODEX_TOKEN_FILE = $tokenPath
 $env:OMI_CODEX_WORKSPACE = $Workspace
 $env:OMI_CODEX_ALLOWED_WORKSPACES = $AllowedWorkspaces
 $env:OMI_CODEX_AUTORUN = "0"

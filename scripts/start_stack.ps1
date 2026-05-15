@@ -17,7 +17,7 @@ function Write-Step($Message) {
 
 function Test-LocalHealth {
   try {
-    $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 15
+    $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health/quick" -TimeoutSec 5
     return ($health.status -eq "healthy")
   } catch {
     return $false
@@ -33,7 +33,7 @@ function Test-PublicHealth {
     return $false
   }
   try {
-    $health = Invoke-RestMethod -Uri "$publicUrl/health" -TimeoutSec 20
+    $health = Invoke-RestMethod -Uri "$publicUrl/health/quick" -TimeoutSec 12
     return ($health.status -eq "healthy")
   } catch {
     try {
@@ -44,7 +44,7 @@ function Test-PublicHealth {
         return $false
       }
       $resolveArg = "$($uri.Host)`:443`:$ip"
-      $raw = & curl.exe --resolve $resolveArg "$publicUrl/health" --max-time 25 --silent --show-error
+      $raw = & curl.exe --resolve $resolveArg "$publicUrl/health/quick" --max-time 15 --silent --show-error
       if ($LASTEXITCODE -ne 0 -or -not $raw) {
         return $false
       }

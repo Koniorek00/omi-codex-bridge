@@ -13,6 +13,7 @@ The bridge is intentionally not a raw "voice runs code immediately" endpoint. It
 ```powershell
 cd "F:\ag projects\apps\Omi\omi-codex-bridge"
 $env:OMI_CODEX_BRIDGE_TOKEN="replace-with-long-random-token"
+# Optional when using scripts: $env:OMI_CODEX_TOKEN_FILE="runtime\current-token.txt"
 $env:OMI_CODEX_WORKSPACE="F:\ag projects\apps\Omi"
 $env:OMI_CODEX_ALLOWED_WORKSPACES="F:\ag projects\apps\Omi"
 $env:OMI_OBSIDIAN_ENABLED="1"

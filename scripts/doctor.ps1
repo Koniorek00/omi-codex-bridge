@@ -93,7 +93,7 @@ if (Test-Path $quickTunnelFile) {
     $token = (Get-Content -Raw -LiteralPath $tokenPath).Trim()
   }
   try {
-    $quickHealth = Invoke-PublicJson "$quickTunnelUrl/health"
+    $quickHealth = Invoke-PublicJson "$quickTunnelUrl/health/quick"
     Show-Check "cloudflare quick tunnel" ($quickHealth.status -eq "healthy") "public HTTPS health is reachable"
   } catch {
     Show-Check "cloudflare quick tunnel" $false "URL exists but health check failed: $quickTunnelUrl"

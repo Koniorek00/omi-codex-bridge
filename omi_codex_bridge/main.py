@@ -138,6 +138,20 @@ def create_app(
             "tailscale_expected": "Use Tailscale Funnel for Omi cloud webhooks; Serve is tailnet-only.",
         }
 
+    def quick_health_payload() -> dict[str, Any]:
+        return {
+            "status": "healthy",
+            "service": "omi-codex-bridge",
+            "runner_mode": config.runner_mode,
+            "autorun": config.autorun,
+            "autorun_policy": {
+                "requires_trusted_uid": config.autorun_requires_trusted_uid,
+                "trusted_uid_count": len(config.trusted_uids),
+            },
+            "using_default_token": config.using_default_token,
+            "phone_status_updates": config.phone_status_updates,
+        }
+
     def export_job_note(job: dict[str, Any]) -> str | None:
         try:
             path = obsidian.export_job(job)
@@ -426,6 +440,10 @@ def create_app(
     @app.get("/health")
     async def health() -> dict[str, Any]:
         return health_payload()
+
+    @app.get("/health/quick")
+    async def quick_health() -> dict[str, Any]:
+        return quick_health_payload()
 
     @app.get("/omi/{token}", response_class=HTMLResponse)
     async def dashboard(token: str) -> str:

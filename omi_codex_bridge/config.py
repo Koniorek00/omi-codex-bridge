@@ -44,12 +44,34 @@ class BridgeConfig:
     def from_env(cls) -> "BridgeConfig":
         runtime_dir = Path(os.getenv("OMI_CODEX_RUNTIME_DIR", Path(__file__).resolve().parents[1] / "runtime")).resolve()
         default_workspace = Path(os.getenv("OMI_CODEX_WORKSPACE", Path(__file__).resolve().parents[2])).resolve()
-        allowed_raw = os.getenv("OMI_CODEX_ALLOWED_WORKSPACES", str(default_workspace))
+        obsidian_vault_raw = os.getenv("OMI_OBSIDIAN_VAULT_PATH", r"F:\programy\Obsidian\Codex Vault\Codex").strip()
+        obsidian_vault = Path(obsidian_vault_raw).expanduser().resolve() if obsidian_vault_raw else None
+        default_allowed = [default_workspace]
+        if len(default_workspace.parents) > 1:
+            default_allowed.insert(0, default_workspace.parents[1])
+        default_allowed.extend(
+            path
+            for path in (
+                Path.home() / ".codex" / "skills",
+                Path.home() / ".agents" / "skills",
+                obsidian_vault,
+            )
+            if path is not None
+        )
+        allowed_raw = os.getenv("OMI_CODEX_ALLOWED_WORKSPACES", ";".join(str(path) for path in default_allowed))
         allowed = _split_paths(allowed_raw)
         if not allowed:
             allowed = [default_workspace]
-        obsidian_vault_raw = os.getenv("OMI_OBSIDIAN_VAULT_PATH", r"F:\programy\Obsidian\Codex Vault\Codex").strip()
-        obsidian_vault = Path(obsidian_vault_raw).expanduser().resolve() if obsidian_vault_raw else None
+        token = os.getenv("OMI_CODEX_BRIDGE_TOKEN", "").strip()
+        if not token:
+            token_file_raw = os.getenv("OMI_CODEX_TOKEN_FILE", str(runtime_dir / "current-token.txt")).strip()
+            token_file = Path(token_file_raw).expanduser()
+            if not token_file.is_absolute():
+                token_file = (Path(__file__).resolve().parents[1] / token_file).resolve()
+            if token_file.is_file():
+                token = token_file.read_text(encoding="utf-8", errors="replace").strip()
+        if not token:
+            token = "dev-token-change-me"
         notification_mode = os.getenv("OMI_NOTIFICATION_MODE", "auto").strip().lower()
         if notification_mode not in {"auto", "adb", "omi"}:
             notification_mode = "auto"
@@ -57,7 +79,7 @@ class BridgeConfig:
         if chat_target not in {"app", "main"}:
             chat_target = "app"
         return cls(
-            token=os.getenv("OMI_CODEX_BRIDGE_TOKEN", "dev-token-change-me"),
+            token=token,
             runtime_dir=runtime_dir,
             database_path=runtime_dir / "bridge.db",
             default_workspace=default_workspace,
@@ -75,7 +97,7 @@ class BridgeConfig:
             omi_chat_messages_enabled=os.getenv("OMI_CHAT_MESSAGES_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"},
             omi_chat_messages_target=chat_target,
             omi_chat_messages_notify=os.getenv("OMI_CHAT_MESSAGES_NOTIFY", "0").strip().lower() in {"1", "true", "yes", "on"},
-            phone_status_updates=os.getenv("OMI_CODEX_PHONE_STATUS_UPDATES", "0").strip().lower() in {"1", "true", "yes", "on"},
+            phone_status_updates=os.getenv("OMI_CODEX_PHONE_STATUS_UPDATES", "1").strip().lower() in {"1", "true", "yes", "on"},
             trusted_uids=_split_values(os.getenv("OMI_CODEX_TRUSTED_UIDS", "")),
             autorun_requires_trusted_uid=os.getenv("OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID", "1").strip().lower()
             in {"1", "true", "yes", "on"},
