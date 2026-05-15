@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import shutil
 import threading
+import asyncio
 import os
 import re
 from pathlib import Path
@@ -439,7 +440,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, Any]:
-        return health_payload()
+        return await asyncio.to_thread(health_payload)
 
     @app.get("/health/quick")
     async def quick_health() -> dict[str, Any]:
@@ -712,7 +713,13 @@ def create_app(
         status = "queued" if inserted else "already queued"
         start_hint = " Started now." if started else run_hint(payload.uid, payload.run_immediately)
         response = {"result": f"Sent to Codex on the PC as {job['id']}: {status}.{start_hint}"}
-        phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {compact_prompt(payload.prompt)}", job["id"])
+        phone_status = await asyncio.to_thread(
+            notify_phone_status,
+            payload.uid,
+            "Codex",
+            f"{job['id']} {status}: {compact_prompt(payload.prompt)}",
+            job["id"],
+        )
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
         if note_path:
@@ -727,12 +734,18 @@ def create_app(
     @app.post("/omi/{token}/tools/show_on_android")
     async def show_on_android_tool(token: str, payload: ShowOnAndroidRequest) -> dict[str, str]:
         check_token(token)
-        return show_on_android(payload.uid, payload.title, payload.message, payload.expand_notifications)
+        return await asyncio.to_thread(
+            show_on_android,
+            payload.uid,
+            payload.title,
+            payload.message,
+            payload.expand_notifications,
+        )
 
     @app.post("/omi/{token}/tools/check_phone_status")
     async def check_phone_status_tool(token: str, payload: CheckPhoneStatusRequest) -> dict[str, str]:
         check_token(token)
-        phone = android_status(config, include_power=True, include_guards=True)
+        phone = await asyncio.to_thread(android_status, config, include_power=True, include_guards=True)
         if not phone["adb_found"]:
             return {"result": "Phone channel blocked: adb is not on PATH."}
         if not phone["available"]:
@@ -765,7 +778,13 @@ def create_app(
         status = "queued" if inserted else "already queued"
         start_hint = " Started now." if started else run_hint(payload.uid, payload.run_immediately)
         response = {"result": f"Quick Codex task {job['id']} {status}: {payload.task_type}.{start_hint}"}
-        phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {payload.task_type} - {compact_prompt(payload.details)}", job["id"])
+        phone_status = await asyncio.to_thread(
+            notify_phone_status,
+            payload.uid,
+            "Codex",
+            f"{job['id']} {status}: {payload.task_type} - {compact_prompt(payload.details)}",
+            job["id"],
+        )
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
         if note_path:
@@ -844,7 +863,13 @@ def create_app(
         started = payload.run_immediately and maybe_autorun(job["uid"], job["id"], background)
         start_hint = " Started now." if started else run_hint(job["uid"], payload.run_immediately)
         response = {"result": f"Retry queued as Codex job {job['id']}.{start_hint}"}
-        phone_status = notify_phone_status(job["uid"], "Codex", f"{job['id']} retry queued: {compact_prompt(job['prompt'])}", job["id"])
+        phone_status = await asyncio.to_thread(
+            notify_phone_status,
+            job["uid"],
+            "Codex",
+            f"{job['id']} retry queued: {compact_prompt(job['prompt'])}",
+            job["id"],
+        )
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
         if note_path:
@@ -854,7 +879,7 @@ def create_app(
     @app.post("/omi/{token}/tools/check_bridge_status")
     async def check_bridge_status_tool(token: str, payload: CheckBridgeStatusRequest) -> dict[str, str]:
         check_token(token)
-        status = health_payload()
+        status = await asyncio.to_thread(health_payload)
         counts = ", ".join(f"{key}: {value}" for key, value in sorted(status["queue_counts"].items())) or "none"
         token_warning = " Default token is still active." if status["using_default_token"] else ""
         codex_state = "found" if status["codex_cli_found"] else "not found"
@@ -893,7 +918,7 @@ def create_app(
         if not prompt:
             return {"session_id": active_session_id, "message": "", "accepted_segments": len(segments)}
         if is_desktop_open_request(prompt):
-            opened = open_desktop_file(prompt)
+            opened = await asyncio.to_thread(open_desktop_file, prompt)
             return {
                 "session_id": active_session_id,
                 "accepted_segments": len(segments),
@@ -903,7 +928,7 @@ def create_app(
             }
         android_message = extract_android_show_message(prompt)
         if android_message:
-            shown = show_on_android(uid, "Codex", android_message, expand_notifications=False)
+            shown = await asyncio.to_thread(show_on_android, uid, "Codex", android_message, False)
             return {
                 "session_id": active_session_id,
                 "accepted_segments": len(segments),
@@ -943,7 +968,13 @@ def create_app(
             "job_id": job["id"],
             "status": job["status"],
         }
-        phone_status = notify_phone_status(uid, "Codex", f"{job['id']} {action}: {compact_prompt(prompt)}", job["id"])
+        phone_status = await asyncio.to_thread(
+            notify_phone_status,
+            uid,
+            "Codex",
+            f"{job['id']} {action}: {compact_prompt(prompt)}",
+            job["id"],
+        )
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
         if realtime_note_path:
@@ -1010,7 +1041,13 @@ def create_app(
             "job_id": job["id"],
             "status": job["status"],
         }
-        phone_status = notify_phone_status(uid, "Codex", f"{job['id']} {action} from memory: {compact_prompt(prompt)}", job["id"])
+        phone_status = await asyncio.to_thread(
+            notify_phone_status,
+            uid,
+            "Codex",
+            f"{job['id']} {action} from memory: {compact_prompt(prompt)}",
+            job["id"],
+        )
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
         if memory_note_path:
