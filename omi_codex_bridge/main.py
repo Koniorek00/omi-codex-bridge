@@ -91,12 +91,33 @@ def create_app(
         thread = threading.Thread(target=runner.run, args=(job_id,), daemon=True)
         thread.start()
 
+    def maybe_autorun(uid: str, job_id: str, background: BackgroundTasks) -> bool:
+        if not config.can_autorun(uid):
+            return False
+        background.add_task(maybe_run, job_id)
+        return True
+
+    def run_hint(uid: str, requested_immediate: bool = False) -> str:
+        if not requested_immediate:
+            return " Say run next Codex job to start it."
+        if not config.autorun:
+            return " It will run after approval from the bridge dashboard."
+        if config.can_autorun(uid):
+            return " It is allowed to run immediately for this trusted Omi uid."
+        if config.autorun_requires_trusted_uid:
+            return " It needs approval because this Omi uid is not trusted for autorun."
+        return ""
+
     def health_payload() -> dict[str, Any]:
         return {
             "status": "healthy",
             "service": "omi-codex-bridge",
             "runner_mode": config.runner_mode,
             "autorun": config.autorun,
+            "autorun_policy": {
+                "requires_trusted_uid": config.autorun_requires_trusted_uid,
+                "trusted_uid_count": len(config.trusted_uids),
+            },
             "default_workspace": str(config.default_workspace),
             "allowed_workspaces": [str(path) for path in config.allowed_workspaces],
             "using_default_token": config.using_default_token,
@@ -669,11 +690,10 @@ def create_app(
             return {"error": str(exc)}
         job, inserted = storage.create_job(payload.uid, "omi-chat-tool", payload.prompt, workspace)
         note_path = export_job_note(job)
-        if inserted and payload.run_immediately and config.autorun:
-            background.add_task(maybe_run, job["id"])
+        started = inserted and payload.run_immediately and maybe_autorun(payload.uid, job["id"], background)
         status = "queued" if inserted else "already queued"
-        run_hint = " It will run after approval from the bridge dashboard." if not config.autorun else ""
-        response = {"result": f"Sent to Codex on the PC as {job['id']}: {status}.{run_hint}"}
+        start_hint = " Started now." if started else run_hint(payload.uid, payload.run_immediately)
+        response = {"result": f"Sent to Codex on the PC as {job['id']}: {status}.{start_hint}"}
         phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {compact_prompt(payload.prompt)}", job["id"])
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
@@ -723,10 +743,10 @@ def create_app(
         prompt = quick_prompt(payload.task_type, payload.details)
         job, inserted = storage.create_job(payload.uid, f"omi-quick-{payload.task_type}", prompt, workspace)
         note_path = export_job_note(job)
-        if inserted and payload.run_immediately and config.autorun:
-            background.add_task(maybe_run, job["id"])
+        started = inserted and payload.run_immediately and maybe_autorun(payload.uid, job["id"], background)
         status = "queued" if inserted else "already queued"
-        response = {"result": f"Quick Codex task {job['id']} {status}: {payload.task_type}"}
+        start_hint = " Started now." if started else run_hint(payload.uid, payload.run_immediately)
+        response = {"result": f"Quick Codex task {job['id']} {status}: {payload.task_type}.{start_hint}"}
         phone_status = notify_phone_status(payload.uid, "Codex", f"{job['id']} {status}: {payload.task_type} - {compact_prompt(payload.details)}", job["id"])
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
@@ -803,10 +823,9 @@ def create_app(
         except ValueError as exc:
             return {"error": str(exc)}
         note_path = export_job_note(job)
-        if payload.run_immediately and config.autorun:
-            background.add_task(maybe_run, job["id"])
-        run_hint = " It will run after approval from the bridge dashboard." if not config.autorun else ""
-        response = {"result": f"Retry queued as Codex job {job['id']}.{run_hint}"}
+        started = payload.run_immediately and maybe_autorun(job["uid"], job["id"], background)
+        start_hint = " Started now." if started else run_hint(job["uid"], payload.run_immediately)
+        response = {"result": f"Retry queued as Codex job {job['id']}.{start_hint}"}
         phone_status = notify_phone_status(job["uid"], "Codex", f"{job['id']} retry queued: {compact_prompt(job['prompt'])}", job["id"])
         if phone_status:
             response["phone_status"] = phone_status["delivery"]
@@ -831,6 +850,7 @@ def create_app(
             "result": (
                 f"Omi Codex Bridge is {status['status']}. Codex CLI: {codex_state}. "
                 f"Runner: {status['runner_mode']}. Autorun: {status['autorun']}. "
+                f"Autorun trusted uids: {status['autorun_policy']['trusted_uid_count']}. "
                 f"Obsidian export: {obsidian_state}. Phone notify: {omi_notify_state}. "
                 f"Android: {phone_state}, {quiet_state}. Queue counts: {counts}.{token_warning}"
             )
@@ -895,13 +915,13 @@ def create_app(
             job=job,
             inserted=inserted,
         )
-        if inserted and config.autorun:
-            background.add_task(maybe_run, job["id"])
+        started = inserted and maybe_autorun(uid, job["id"], background)
         action = "queued" if inserted else "already queued"
+        run_text = " Started now." if started else run_hint(uid, requested_immediate=True)
         response = {
             "session_id": active_session_id,
             "accepted_segments": len(segments),
-            "message": f"Sent to Codex on this PC as {job['id']}: {action}. Open the bridge dashboard or say run next Codex job.",
+            "message": f"Sent to Codex on this PC as {job['id']}: {action}.{run_text} Open the bridge dashboard or say run next Codex job.",
             "job_id": job["id"],
             "status": job["status"],
         }
@@ -963,12 +983,12 @@ def create_app(
             prompt=prompt,
             job=job,
         )
-        if inserted and config.autorun:
-            background.add_task(maybe_run, job["id"])
+        started = inserted and maybe_autorun(uid, job["id"], background)
         action = "queued" if inserted else "already queued"
+        run_text = " Started now." if started else run_hint(uid, requested_immediate=True)
         response = {
             "memory_id": memory_id,
-            "message": f"Sent memory request to Codex on this PC as {job['id']}: {action}.",
+            "message": f"Sent memory request to Codex on this PC as {job['id']}: {action}.{run_text}",
             "job_id": job["id"],
             "status": job["status"],
         }
@@ -1068,8 +1088,8 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         note_path = export_job_note(job)
-        if run and config.autorun:
-            background.add_task(maybe_run, job["id"])
+        if run:
+            maybe_autorun(job["uid"], job["id"], background)
         response = {"job": job}
         if note_path:
             response["obsidian_note"] = note_path

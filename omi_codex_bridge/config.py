@@ -9,6 +9,10 @@ def _split_paths(value: str) -> list[Path]:
     return [Path(item).expanduser().resolve() for item in value.split(";") if item.strip()]
 
 
+def _split_values(value: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in value.replace(";", ",").split(",") if item.strip())
+
+
 @dataclass(frozen=True)
 class BridgeConfig:
     token: str
@@ -30,6 +34,8 @@ class BridgeConfig:
     omi_chat_messages_target: str = "app"
     omi_chat_messages_notify: bool = False
     phone_status_updates: bool = False
+    trusted_uids: tuple[str, ...] = ()
+    autorun_requires_trusted_uid: bool = True
     android_serial: str | None = None
     android_expand_notifications: bool = False
     android_sleep_after_notify: bool = True
@@ -70,6 +76,9 @@ class BridgeConfig:
             omi_chat_messages_target=chat_target,
             omi_chat_messages_notify=os.getenv("OMI_CHAT_MESSAGES_NOTIFY", "0").strip().lower() in {"1", "true", "yes", "on"},
             phone_status_updates=os.getenv("OMI_CODEX_PHONE_STATUS_UPDATES", "0").strip().lower() in {"1", "true", "yes", "on"},
+            trusted_uids=_split_values(os.getenv("OMI_CODEX_TRUSTED_UIDS", "")),
+            autorun_requires_trusted_uid=os.getenv("OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID", "1").strip().lower()
+            in {"1", "true", "yes", "on"},
             android_serial=os.getenv("OMI_ANDROID_SERIAL", "").strip() or None,
             android_expand_notifications=os.getenv("OMI_ANDROID_EXPAND_NOTIFICATIONS", "0").strip().lower() in {"1", "true", "yes", "on"},
             android_sleep_after_notify=os.getenv("OMI_ANDROID_SLEEP_AFTER_NOTIFY", "1").strip().lower() in {"1", "true", "yes", "on"},
@@ -78,6 +87,13 @@ class BridgeConfig:
     @property
     def using_default_token(self) -> bool:
         return self.token == "dev-token-change-me"
+
+    def can_autorun(self, uid: str | None) -> bool:
+        if not self.autorun:
+            return False
+        if not self.autorun_requires_trusted_uid:
+            return True
+        return bool(uid and uid in self.trusted_uids)
 
     def normalize_workspace(self, workspace: str | None) -> Path:
         candidate = Path(workspace).expanduser().resolve() if workspace else self.default_workspace

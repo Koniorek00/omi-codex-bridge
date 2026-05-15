@@ -8,6 +8,7 @@ param(
   [switch]$DisableObsidian,
   [switch]$DisablePhoneStatus,
   [switch]$ExpandAndroidNotifications,
+  [string]$TrustedUids = "",
   [string]$TokenFile = "runtime\current-token.txt"
 )
 
@@ -36,6 +37,8 @@ $env:OMI_CODEX_BRIDGE_TOKEN = $token
 $env:OMI_CODEX_WORKSPACE = $Workspace
 $env:OMI_CODEX_ALLOWED_WORKSPACES = $AllowedWorkspaces
 $env:OMI_CODEX_AUTORUN = "0"
+$env:OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID = "1"
+$env:OMI_CODEX_TRUSTED_UIDS = $TrustedUids
 $env:OMI_CODEX_RUNNER = "codex"
 $env:OMI_CODEX_RUNTIME_DIR = $runtimeDir
 $env:OMI_OBSIDIAN_ENABLED = if ($DisableObsidian) { "0" } else { "1" }
@@ -62,6 +65,7 @@ if ($Background) {
     "-AllowedWorkspaces", "`"$AllowedWorkspaces`"",
     "-ObsidianVault", "`"$ObsidianVault`"",
     "-ObsidianRoot", "`"$ObsidianRoot`"",
+    "-TrustedUids", "`"$TrustedUids`"",
     "-TokenFile", "`"$TokenFile`""
   )
   if ($DisableObsidian) {

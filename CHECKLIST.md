@@ -7,8 +7,9 @@ Mission: keep the Omi -> Codex -> PC/Android bridge usable, quiet on the phone, 
 - [x] Android phone status/notification path works over ADB without expanding notifications.
 - [x] Android quiet mode is enforced: no stay-awake guard, no volume wake guard, safe timeout profile.
 - [x] Startup watchdog exists through the user Startup shortcut fallback.
+- [x] Autorun is gated by trusted Omi uid settings before any automatic job start.
 - [x] Test suite passes.
 - [!] Tailscale Funnel blocked - tailnet HTTPS/Funnel certificates are not enabled in Tailscale admin settings.
 - [x] Commit or otherwise seal the current dirty worktree before any worktree-swarm builder run.
 - [ ] After the user opens Omi on the phone, paste/update the current setup URL from `runtime/omi-setup.private.html` if the quick tunnel changes.
-- [ ] Add a stronger authenticated queue/run policy before enabling full remote autorun from public Omi traffic.
+- [ ] Add a stronger authenticated queue/run policy before enabling broader public remote control.

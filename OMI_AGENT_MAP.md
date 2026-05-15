@@ -62,6 +62,8 @@ Use the Tailscale Funnel HTTPS base URL plus the tokenized paths below.
 6. The bridge starts `codex exec` in the requested allowlisted workspace.
 7. Output is stored under `runtime\jobs\<job-id>` and the job note is updated when the job finishes.
 
+Autorun remains trusted-uid gated by default through `OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID=1` and `OMI_CODEX_TRUSTED_UIDS`.
+
 ## Phone State
 ADB sees authorized phone serial `RZCXB128SKH`. BackgroundGuard and VolumeWake are intentionally not installed. KeepAlive remains active and uses `Ensure-AndroidConnection.ps1 -Prefer any -Control none`, so it reconnects without opening scrcpy or waking the display.
 

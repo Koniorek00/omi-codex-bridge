@@ -13,7 +13,13 @@ from omi_codex_bridge.runner import CodexRunner
 from omi_codex_bridge.storage import BridgeStorage
 
 
-def make_config(tmp_path: Path, autorun: bool = False, phone_status_updates: bool = False) -> BridgeConfig:
+def make_config(
+    tmp_path: Path,
+    autorun: bool = False,
+    phone_status_updates: bool = False,
+    trusted_uids: tuple[str, ...] = (),
+    autorun_requires_trusted_uid: bool = True,
+) -> BridgeConfig:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     return BridgeConfig(
@@ -26,11 +32,25 @@ def make_config(tmp_path: Path, autorun: bool = False, phone_status_updates: boo
         runner_mode="mock",
         codex_timeout_seconds=30,
         phone_status_updates=phone_status_updates,
+        trusted_uids=trusted_uids,
+        autorun_requires_trusted_uid=autorun_requires_trusted_uid,
     )
 
 
-def make_client(tmp_path: Path, autorun: bool = False, phone_status_updates: bool = False) -> TestClient:
-    config = make_config(tmp_path, autorun=autorun, phone_status_updates=phone_status_updates)
+def make_client(
+    tmp_path: Path,
+    autorun: bool = False,
+    phone_status_updates: bool = False,
+    trusted_uids: tuple[str, ...] = (),
+    autorun_requires_trusted_uid: bool = True,
+) -> TestClient:
+    config = make_config(
+        tmp_path,
+        autorun=autorun,
+        phone_status_updates=phone_status_updates,
+        trusted_uids=trusted_uids,
+        autorun_requires_trusted_uid=autorun_requires_trusted_uid,
+    )
     storage = BridgeStorage(":memory:")
     runner = MockRunner(storage, config)
     return TestClient(create_app(config=config, storage=storage, runner=runner))
@@ -99,6 +119,63 @@ def test_realtime_webhook_accepts_loose_transcript_payloads(tmp_path: Path) -> N
     assert response["job_id"] == "job-1"
     job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
     assert job["prompt"] == "popraw aplikację"
+
+
+def test_autorun_requires_trusted_uid_when_enabled(tmp_path: Path) -> None:
+    client = make_client(tmp_path, autorun=True, trusted_uids=("owner",))
+    response = client.post(
+        "/omi/test-token/tools/start_codex_task",
+        json={
+            "uid": "stranger",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "start_codex_task",
+            "prompt": "Create trusted uid smoke test",
+            "run_immediately": True,
+        },
+    ).json()
+
+    assert "not trusted for autorun" in response["result"]
+    job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+    assert job["status"] == "pending"
+
+
+def test_autorun_starts_for_trusted_uid(tmp_path: Path) -> None:
+    client = make_client(tmp_path, autorun=True, trusted_uids=("owner",))
+    response = client.post(
+        "/omi/test-token/tools/start_codex_task",
+        json={
+            "uid": "owner",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "start_codex_task",
+            "prompt": "Create trusted uid smoke test",
+            "run_immediately": True,
+        },
+    ).json()
+
+    assert "Started now" in response["result"]
+    for _ in range(20):
+        job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+        if job["status"] == "succeeded":
+            break
+        time.sleep(0.05)
+    assert job["status"] == "succeeded"
+
+
+def test_trusted_uid_still_queues_when_immediate_run_is_not_requested(tmp_path: Path) -> None:
+    client = make_client(tmp_path, autorun=True, trusted_uids=("owner",))
+    response = client.post(
+        "/omi/test-token/tools/start_codex_task",
+        json={
+            "uid": "owner",
+            "app_id": "omi_codex_bridge",
+            "tool_name": "start_codex_task",
+            "prompt": "Create trusted uid queued smoke test",
+        },
+    ).json()
+
+    assert "Say run next Codex job" in response["result"]
+    job = client.get("/omi/test-token/api/jobs/job-1").json()["job"]
+    assert job["status"] == "pending"
 
 
 def test_realtime_webhook_prefers_user_segments(tmp_path: Path) -> None:

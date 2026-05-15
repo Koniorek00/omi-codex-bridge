@@ -248,6 +248,7 @@ Notes are kept in `OMI_RESEARCH_NOTES.md`.
 - Workspaces are allowlisted by `OMI_CODEX_ALLOWED_WORKSPACES`.
 - Jobs queue by default. They do not run until you press Run in the dashboard or call the run endpoint/tool.
 - `OMI_CODEX_AUTORUN=1` exists, but should stay off unless you accept the risk.
+- If autorun is enabled, `OMI_CODEX_AUTORUN_REQUIRE_TRUSTED_UID=1` keeps automatic starts limited to `OMI_CODEX_TRUSTED_UIDS`.
 - The Codex CLI runs with `--sandbox workspace-write` and `-c approval_policy="never"`, not with bypassed sandbox.
 
 ## Codex command used
