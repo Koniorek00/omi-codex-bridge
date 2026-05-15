@@ -13,6 +13,7 @@ Mission: keep the Omi -> Codex -> PC/Android bridge usable, quiet on the phone, 
 - [x] Trusted UID and autorun settings can now persist through `runtime/trusted-uids.txt` and `runtime/autorun.enabled`.
 - [x] Trusted autorun setup script validates UID edits, can remove UIDs, and refuses unsafe enable/disable conflicts.
 - [x] Dashboard shows known Omi UIDs and marks trusted ones.
+- [x] Polish Omi/Codex trigger parser handles normal diacritics like `żeby`, `połącz`, `sprawdź`, and `aplikację`.
 - [x] Claude Opus API and local proxy are verified for test/review use.
 - [x] Watchdog uses a quick health endpoint so slow Android checks do not cause false restarts.
 - [x] Bridge can recover its token from `runtime/current-token.txt` when launched without env wiring.

@@ -26,3 +26,4 @@
 - Updated the Aria companion doctor script so it no longer guesses app-scoped Android IDs from ADB; the app now keeps its own stable device key by default.
 - Confirmed the phone returned to quiet mode after setup: `Dozing`, no stay-on, no display suspend blocker.
 - Hardened trusted autorun setup: UID add/remove validation, conflict guard, durable file docs, dashboard known-UID panel, and trusted UID flags in `/api/known-uids`.
+- Repaired Polish trigger parsing so real Omi phrases with normal diacritics work, while keeping compatibility with older mojibake examples.

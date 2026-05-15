@@ -62,6 +62,8 @@ def test_trigger_parser_extracts_voice_prompt() -> None:
     assert extract_codex_prompt("Ask Codex to write exactly: done.") == "write exactly: done."
     assert extract_codex_prompt("Codex fix the failing tests") == "fix the failing tests"
     assert extract_codex_prompt("Hej Omi kodeks napraw aplikację") == "napraw aplikację"
+    assert extract_codex_prompt("Poproś kodeks żeby sprawdził połączenie z Obsidianem") == "sprawdził połączenie z Obsidianem"
+    assert extract_codex_prompt("Kodeks proszę połącz telefon z mostem") == "połącz telefon z mostem"
     assert extract_codex_prompt("Omi to jest do ciebie popraw bridge") == "popraw bridge"
     assert extract_codex_prompt("Powiedz Codexowi żeby uruchomił testy") == "uruchomił testy"
     assert extract_codex_prompt("Hej Omi powiedz Codex zeby otworzyl plik z pulpitu") == "otworzyl plik z pulpitu"

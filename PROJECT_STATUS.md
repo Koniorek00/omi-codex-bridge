@@ -20,6 +20,7 @@ The main unfinished items are not core code bugs. They are setup/product gaps: f
 - Protected `/api/known-uids` endpoint to inspect captured Omi UIDs.
 - Dashboard known-UID panel that marks trusted UIDs.
 - Durable trusted autorun setup script for local runtime files.
+- Polish trigger parsing for real diacritic phrases.
 - Android phone notifications through ADB.
 - Quiet phone behavior by default.
 - Fast scheduled-task check for Android wake guards, with PowerShell fallback.

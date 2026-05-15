@@ -217,6 +217,8 @@ Tell Codex to refactor the dashboard
 Codex start writing the Notion sync integration
 Hej Omi kodeks napraw aplikację
 Powiedz Codexowi żeby uruchomił testy
+Poproś kodeks żeby sprawdził połączenie z Obsidianem
+Kodeks proszę połącz telefon z mostem
 Omi to jest do ciebie popraw bridge
 Hej Omi powiedz Codex zeby otworzyl na moim komputerze teraz jakis plik z pulpitu obojetne
 Powiedz Codexowi zeby pokazal na telefonie: test z komputera
